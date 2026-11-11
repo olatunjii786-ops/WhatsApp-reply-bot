@@ -1,14 +1,25 @@
-// language: JavaScript, file: index.js, target: Node.js (Render)
+// language: JavaScript, file: index.js, target: Node.js (Render Web Service)
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import fs from 'fs';
+import http from 'http'; // For the dummy web server
 import sharp from 'sharp';
 import ytdl from 'ytdl-core';
 
 // --- CONFIGURATION ---
-const PHONE_NUMBER = "2349014094846"; // Your pairing number
-const AUTH_FOLDER = './auth_info_baileys';
-const CONFIG_FILE = './bot_config.json';
+const PHONE_NUMBER = "2349014094846"; 
+// Use /var/data for persistent disk (if mounted), fallback to local
+const AUTH_FOLDER = fs.existsSync('/var/data') ? '/var/data/auth_info_baileys' : './auth_info_baileys';
+const CONFIG_FILE = fs.existsSync('/var/data') ? '/var/data/bot_config.json' : './bot_config.json';
+
+// --- DUMMY WEB SERVER (To keep Render happy) ---
+const PORT = process.env.PORT || 10000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('CinderBot is running.\n');
+}).listen(PORT, () => {
+    console.log(`Web server listening on port ${PORT}`);
+});
 
 // Default Config
 if (!fs.existsSync(CONFIG_FILE)) {
@@ -70,7 +81,6 @@ async function connectToWhatsApp() {
         if (!msg.message || msg.key.fromMe) return;
 
         const sender = msg.key.remoteJid;
-        const pushName = msg.pushName || "User";
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
         const config = await getConfig();
 
@@ -98,25 +108,20 @@ async function connectToWhatsApp() {
         }
 
         // --- FEATURE 2: AUTO-RESPONDER ---
-        // If away mode is ON, and the message isn't a command, reply with the away message
         if (config.awayMode && !text.startsWith('.')) {
             await sock.sendMessage(sender, { text: config.awayMessage });
-            return; // Stop processing so it doesn't trigger other features
+            return;
         }
 
         // --- FEATURE 6: STICKER MAKER ---
-        // If user sends an image (conversation is empty, but imageMessage exists)
         if (msg.message.imageMessage) {
             await sock.sendMessage(sender, { text: '⏳ Converting image to sticker...' });
             try {
                 const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: pino({ level: 'silent' }) });
-                
-                // Resize and convert to webp using sharp
                 const stickerBuffer = await sharp(buffer)
                     .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
                     .webp()
                     .toBuffer();
-
                 await sock.sendMessage(sender, { sticker: stickerBuffer });
             } catch (e) {
                 console.log("Sticker error:", e);
@@ -127,36 +132,33 @@ async function connectToWhatsApp() {
 
         // --- FEATURE 3: MEDIA SCRAPER (YouTube) ---
         if (text.startsWith('https://www.youtube.com/') || text.startsWith('https://youtu.be/')) {
-            await sock.sendMessage(sender, { text: '⏳ Downloading video from YouTube... (This may take a minute)' });
+            await sock.sendMessage(sender, { text: '⏳ Downloading video from YouTube...' });
             try {
                 const info = await ytdl.getInfo(text);
                 const format = ytdl.chooseFormat(info.formats, { quality: 'lowest', filter: 'audioandvideo' });
                 
-                if (format && format.contentLength < 16 * 1024 * 1024) { // Check if under 16MB for WhatsApp limit
+                if (format && format.contentLength < 16 * 1024 * 1024) {
                     const stream = ytdl(text, { format });
                     const chunks = [];
-                    for await (const chunk of stream) {
-                        chunks.push(chunk);
-                    }
+                    for await (const chunk of stream) { chunks.push(chunk); }
                     const buffer = Buffer.concat(chunks);
                     
                     await sock.sendMessage(sender, { 
                         video: buffer, 
-                        caption: `🎥 ${info.videoDetails.title}\n\nDownloaded by CinderBot` 
+                        caption: `🎥 ${info.videoDetails.title}` 
                     });
                 } else {
-                    await sock.sendMessage(sender, { text: '❌ Video is too large (WhatsApp limit is ~16MB). Try a shorter video.' });
+                    await sock.sendMessage(sender, { text: '❌ Video too large (Max 16MB).' });
                 }
             } catch (e) {
                 console.log("YouTube error:", e);
-                await sock.sendMessage(sender, { text: '❌ Failed to download YouTube video.' });
+                await sock.sendMessage(sender, { text: '❌ Failed to download video. YouTube may be blocking the server IP.' });
             }
             return;
         }
 
-        // Default fallback for unrecognized commands
         if (text.startsWith('.')) {
-            await sock.sendMessage(sender, { text: '❓ Unknown command. Try .ping, .away on, .away off' });
+            await sock.sendMessage(sender, { text: '❓ Unknown command.' });
         }
     });
 }
