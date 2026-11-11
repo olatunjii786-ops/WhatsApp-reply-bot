@@ -2,24 +2,21 @@
 import makeWASocket, { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadMediaMessage } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import fs from 'fs';
-import http from 'http'; // For the dummy web server
+import http from 'http';
 import sharp from 'sharp';
 import ytdl from 'ytdl-core';
 
 // --- CONFIGURATION ---
 const PHONE_NUMBER = "2349014094846"; 
-// Use /var/data for persistent disk (if mounted), fallback to local
 const AUTH_FOLDER = fs.existsSync('/var/data') ? '/var/data/auth_info_baileys' : './auth_info_baileys';
 const CONFIG_FILE = fs.existsSync('/var/data') ? '/var/data/bot_config.json' : './bot_config.json';
 
-// --- DUMMY WEB SERVER (To keep Render happy) ---
+// --- DUMMY WEB SERVER ---
 const PORT = process.env.PORT || 10000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('CinderBot is running.\n');
-}).listen(PORT, () => {
-    console.log(`Web server listening on port ${PORT}`);
-});
+    res.end('Bot is running.\n');
+}).listen(PORT, () => console.log(`Web server on port ${PORT}`));
 
 // Default Config
 if (!fs.existsSync(CONFIG_FILE)) {
@@ -46,9 +43,8 @@ async function connectToWhatsApp() {
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
-    // Pairing Code Logic
+    // Pairing Code
     if (!sock.authState.creds.registered) {
-        console.log(`Requesting pairing code for ${PHONE_NUMBER}...`);
         setTimeout(async () => {
             try {
                 const code = await sock.requestPairingCode(PHONE_NUMBER);
@@ -56,9 +52,7 @@ async function connectToWhatsApp() {
                 console.log(`YOUR PAIRING CODE: ${code}`);
                 console.log(`Go to WhatsApp -> Linked Devices -> Link with Phone Number`);
                 console.log(`===========================================\n`);
-            } catch (err) {
-                console.log("Error getting pairing code:", err);
-            }
+            } catch (err) { console.log("Pairing error:", err); }
         }, 3000);
     }
 
@@ -67,55 +61,61 @@ async function connectToWhatsApp() {
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Connection closed. Reconnecting...', shouldReconnect);
-            if (shouldReconnect) connectToWhatsApp();
+            if (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut) connectToWhatsApp();
         } else if (connection === 'open') {
-            console.log('✅ Bot is successfully connected to WhatsApp!');
+            console.log('✅ Bot connected to WhatsApp!');
         }
     });
 
-    // --- MESSAGE HANDLER ---
     sock.ev.on('messages.upsert', async (m) => {
         const msg = m.messages[0];
-        if (!msg.message || msg.key.fromMe) return;
+        if (!msg.message) return;
+        if (msg.key.remoteJid === 'status@broadcast') return; // Ignore status updates
 
         const sender = msg.key.remoteJid;
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+        // Extract text safely
+        const text = msg.message.conversation || 
+                     msg.message.extendedTextMessage?.text || 
+                     msg.message.imageMessage?.caption || "";
+
+        // LOOP PREVENTER: If the message starts with a secret bot tag, ignore it
+        if (text.includes('[CinderBot]')) return; 
+
         const config = await getConfig();
 
         // --- COMMANDS ---
         if (text === '.ping') {
-            return await sock.sendMessage(sender, { text: '🏓 Pong!' });
+            return await sock.sendMessage(sender, { text: '🏓 Pong! [CinderBot]' });
         }
 
         if (text === '.away on') {
             config.awayMode = true;
             await saveConfig(config);
-            return await sock.sendMessage(sender, { text: '✅ Away mode is now ON.' });
+            return await sock.sendMessage(sender, { text: '✅ Away mode ON. [CinderBot]' });
         }
 
         if (text === '.away off') {
             config.awayMode = false;
             await saveConfig(config);
-            return await sock.sendMessage(sender, { text: '✅ Away mode is now OFF.' });
+            return await sock.sendMessage(sender, { text: '✅ Away mode OFF. [CinderBot]' });
         }
 
         if (text.startsWith('.setaway ')) {
             config.awayMessage = text.slice(9);
             await saveConfig(config);
-            return await sock.sendMessage(sender, { text: `✅ Away message updated: "${config.awayMessage}"` });
+            return await sock.sendMessage(sender, { text: `✅ Away message updated. [CinderBot]` });
         }
 
-        // --- FEATURE 2: AUTO-RESPONDER ---
+        // --- AUTO-RESPONDER ---
         if (config.awayMode && !text.startsWith('.')) {
-            await sock.sendMessage(sender, { text: config.awayMessage });
+            // Append the bot tag to prevent an infinite loop
+            await sock.sendMessage(sender, { text: config.awayMessage + " [CinderBot]" });
             return;
         }
 
-        // --- FEATURE 6: STICKER MAKER ---
+        // --- STICKER MAKER ---
         if (msg.message.imageMessage) {
-            await sock.sendMessage(sender, { text: '⏳ Converting image to sticker...' });
+            await sock.sendMessage(sender, { text: '⏳ Converting... [CinderBot]' });
             try {
                 const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: pino({ level: 'silent' }) });
                 const stickerBuffer = await sharp(buffer)
@@ -124,15 +124,14 @@ async function connectToWhatsApp() {
                     .toBuffer();
                 await sock.sendMessage(sender, { sticker: stickerBuffer });
             } catch (e) {
-                console.log("Sticker error:", e);
-                await sock.sendMessage(sender, { text: '❌ Failed to create sticker.' });
+                await sock.sendMessage(sender, { text: '❌ Failed to create sticker. [CinderBot]' });
             }
             return;
         }
 
-        // --- FEATURE 3: MEDIA SCRAPER (YouTube) ---
+        // --- MEDIA SCRAPER (YouTube) ---
         if (text.startsWith('https://www.youtube.com/') || text.startsWith('https://youtu.be/')) {
-            await sock.sendMessage(sender, { text: '⏳ Downloading video from YouTube...' });
+            await sock.sendMessage(sender, { text: '⏳ Downloading... [CinderBot]' });
             try {
                 const info = await ytdl.getInfo(text);
                 const format = ytdl.chooseFormat(info.formats, { quality: 'lowest', filter: 'audioandvideo' });
@@ -143,22 +142,18 @@ async function connectToWhatsApp() {
                     for await (const chunk of stream) { chunks.push(chunk); }
                     const buffer = Buffer.concat(chunks);
                     
-                    await sock.sendMessage(sender, { 
-                        video: buffer, 
-                        caption: `🎥 ${info.videoDetails.title}` 
-                    });
+                    await sock.sendMessage(sender, { video: buffer, caption: `🎥 ${info.videoDetails.title} [CinderBot]` });
                 } else {
-                    await sock.sendMessage(sender, { text: '❌ Video too large (Max 16MB).' });
+                    await sock.sendMessage(sender, { text: '❌ Video too large (Max 16MB). [CinderBot]' });
                 }
             } catch (e) {
-                console.log("YouTube error:", e);
-                await sock.sendMessage(sender, { text: '❌ Failed to download video. YouTube may be blocking the server IP.' });
+                await sock.sendMessage(sender, { text: '❌ Download failed. YouTube might be blocking the server. [CinderBot]' });
             }
             return;
         }
 
         if (text.startsWith('.')) {
-            await sock.sendMessage(sender, { text: '❓ Unknown command.' });
+            await sock.sendMessage(sender, { text: '❓ Unknown command. [CinderBot]' });
         }
     });
 }
