@@ -8,28 +8,33 @@ import ytdl from 'ytdl-core';
 
 // --- CONFIGURATION ---
 const PHONE_NUMBER = "2349014094846"; 
+const MY_JID = "2349014094846@s.whatsapp.net"; // Your bot's personal DM ID
 const AUTH_FOLDER = fs.existsSync('/var/data') ? '/var/data/auth_info_baileys' : './auth_info_baileys';
 const CONFIG_FILE = fs.existsSync('/var/data') ? '/var/data/bot_config.json' : './bot_config.json';
+const COOLDOWN_FILE = fs.existsSync('/var/data') ? '/var/data/cooldowns.json' : './cooldowns.json';
 
-// --- DUMMY WEB SERVER ---
+// --- DUMMY WEB SERVER (Keeps Render Free Tier Happy) ---
 const PORT = process.env.PORT || 10000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Bot is running.\n');
-}).listen(PORT, () => console.log(`Web server on port ${PORT}`));
+    res.end('CinderBot Secretary is running.\n');
+}).listen(PORT, () => console.log(`Web server listening on port ${PORT}`));
 
-// Default Config
+// --- STATE MANAGEMENT ---
+// 1. Bot Config
 if (!fs.existsSync(CONFIG_FILE)) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify({ awayMode: false, awayMessage: "I'm currently offline. I'll reply later." }));
 }
+const getConfig = () => JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+const saveConfig = (config) => fs.writeFileSync(CONFIG_FILE, JSON.stringify(config));
 
-async function getConfig() {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+// 2. Cooldown Tracker (Remembers who was replied to)
+if (!fs.existsSync(COOLDOWN_FILE)) {
+    fs.writeFileSync(COOLDOWN_FILE, JSON.stringify({}));
 }
+const getCooldowns = () => JSON.parse(fs.readFileSync(COOLDOWN_FILE, 'utf8'));
+const saveCooldowns = (data) => fs.writeFileSync(COOLDOWN_FILE, JSON.stringify(data));
 
-async function saveConfig(config) {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config));
-}
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
@@ -63,97 +68,97 @@ async function connectToWhatsApp() {
         if (connection === 'close') {
             if (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut) connectToWhatsApp();
         } else if (connection === 'open') {
-            console.log('✅ Bot connected to WhatsApp!');
+            console.log('✅ Bot is successfully connected to WhatsApp!');
         }
     });
 
     sock.ev.on('messages.upsert', async (m) => {
         const msg = m.messages[0];
         if (!msg.message) return;
-        if (msg.key.remoteJid === 'status@broadcast') return; // Ignore status updates
+        if (msg.key.remoteJid === 'status@broadcast') return;
+        if (msg.key.remoteJid.endsWith('@g.us')) return; // DEAF TO GROUPS
 
         const sender = msg.key.remoteJid;
-        // Extract text safely
         const text = msg.message.conversation || 
                      msg.message.extendedTextMessage?.text || 
                      msg.message.imageMessage?.caption || "";
+        const isMe = msg.key.fromMe || sender === MY_JID;
 
-        // LOOP PREVENTER: If the message starts with a secret bot tag, ignore it
-        if (text.includes('[CinderBot]')) return; 
+        // ==========================================
+        // PART 1: YOUR PERSONAL COMMANDS
+        // ==========================================
+        if (isMe) {
+            if (text.includes('[CinderBot]')) return; // Ignore bot's own replies
 
-        const config = await getConfig();
+            const config = await getConfig();
 
-        // --- COMMANDS ---
-        if (text === '.ping') {
-            return await sock.sendMessage(sender, { text: '🏓 Pong! [CinderBot]' });
-        }
+            if (text === '.ping') return await sock.sendMessage(MY_JID, { text: '🏓 Pong! [CinderBot]' });
+            if (text === '.away on') { config.awayMode = true; saveConfig(config); return await sock.sendMessage(MY_JID, { text: '✅ Away mode ON. [CinderBot]' }); }
+            if (text === '.away off') { config.awayMode = false; saveConfig(config); return await sock.sendMessage(MY_JID, { text: '✅ Away mode OFF. [CinderBot]' }); }
+            if (text.startsWith('.setaway ')) { config.awayMessage = text.slice(9); saveConfig(config); return await sock.sendMessage(MY_JID, { text: `✅ Away message updated. [CinderBot]` }); }
 
-        if (text === '.away on') {
-            config.awayMode = true;
-            await saveConfig(config);
-            return await sock.sendMessage(sender, { text: '✅ Away mode ON. [CinderBot]' });
-        }
-
-        if (text === '.away off') {
-            config.awayMode = false;
-            await saveConfig(config);
-            return await sock.sendMessage(sender, { text: '✅ Away mode OFF. [CinderBot]' });
-        }
-
-        if (text.startsWith('.setaway ')) {
-            config.awayMessage = text.slice(9);
-            await saveConfig(config);
-            return await sock.sendMessage(sender, { text: `✅ Away message updated. [CinderBot]` });
-        }
-
-        // --- AUTO-RESPONDER ---
-        if (config.awayMode && !text.startsWith('.')) {
-            // Append the bot tag to prevent an infinite loop
-            await sock.sendMessage(sender, { text: config.awayMessage + " [CinderBot]" });
-            return;
-        }
-
-        // --- STICKER MAKER ---
-        if (msg.message.imageMessage) {
-            await sock.sendMessage(sender, { text: '⏳ Converting... [CinderBot]' });
-            try {
-                const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: pino({ level: 'silent' }) });
-                const stickerBuffer = await sharp(buffer)
-                    .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                    .webp()
-                    .toBuffer();
-                await sock.sendMessage(sender, { sticker: stickerBuffer });
-            } catch (e) {
-                await sock.sendMessage(sender, { text: '❌ Failed to create sticker. [CinderBot]' });
+            // Sticker Maker (only for you)
+            if (msg.message.imageMessage) {
+                await sock.sendMessage(MY_JID, { text: '⏳ Converting image... [CinderBot]' });
+                try {
+                    const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: pino({ level: 'silent' }) });
+                    const stickerBuffer = await sharp(buffer).resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).webp().toBuffer();
+                    await sock.sendMessage(MY_JID, { sticker: stickerBuffer });
+                } catch (e) { await sock.sendMessage(MY_JID, { text: '❌ Failed to create sticker. [CinderBot]' }); }
+                return;
             }
-            return;
+
+            // YouTube Downloader (only for you)
+            if (text.startsWith('https://www.youtube.com/') || text.startsWith('https://youtu.be/')) {
+                await sock.sendMessage(MY_JID, { text: '⏳ Downloading video... [CinderBot]' });
+                try {
+                    const info = await ytdl.getInfo(text);
+                    const format = ytdl.chooseFormat(info.formats, { quality: 'lowest', filter: 'audioandvideo' });
+                    if (format && format.contentLength < 16 * 1024 * 1024) {
+                        const stream = ytdl(text, { format });
+                        const chunks = [];
+                        for await (const chunk of stream) { chunks.push(chunk); }
+                        const buffer = Buffer.concat(chunks);
+                        await sock.sendMessage(MY_JID, { video: buffer, caption: `🎥 ${info.videoDetails.title} [CinderBot]` });
+                    } else {
+                        await sock.sendMessage(MY_JID, { text: '❌ Video too large (Max 16MB). [CinderBot]' });
+                    }
+                } catch (e) { await sock.sendMessage(MY_JID, { text: '❌ Download failed. YouTube is blocking Render. [CinderBot]' }); }
+                return;
+            }
         }
 
-        // --- MEDIA SCRAPER (YouTube) ---
-        if (text.startsWith('https://www.youtube.com/') || text.startsWith('https://youtu.be/')) {
-            await sock.sendMessage(sender, { text: '⏳ Downloading... [CinderBot]' });
+        // ==========================================
+        // PART 2: REPLYING TO OTHERS (THE SECRETARY)
+        // ==========================================
+        if (!isMe) {
+            const config = await getConfig();
+            
+            // If Away Mode is OFF, do nothing for normal people.
+            if (!config.awayMode) return;
+
+            // Check the 24-Hour Cooldown
+            const cooldowns = getCooldowns();
+            const now = Date.now();
+            const lastReplied = cooldowns[sender] || 0;
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+
+            if (now - lastReplied < twentyFourHours) {
+                // Already replied to this person in the last 24 hours. Ignore.
+                console.log(`Ignored ${sender} - in 24hr cooldown.`);
+                return;
+            }
+
+            // Reply and log the timestamp
             try {
-                const info = await ytdl.getInfo(text);
-                const format = ytdl.chooseFormat(info.formats, { quality: 'lowest', filter: 'audioandvideo' });
+                await sock.sendMessage(sender, { text: config.awayMessage });
+                console.log(`Auto-replied to ${sender}. Cooldown started.`);
                 
-                if (format && format.contentLength < 16 * 1024 * 1024) {
-                    const stream = ytdl(text, { format });
-                    const chunks = [];
-                    for await (const chunk of stream) { chunks.push(chunk); }
-                    const buffer = Buffer.concat(chunks);
-                    
-                    await sock.sendMessage(sender, { video: buffer, caption: `🎥 ${info.videoDetails.title} [CinderBot]` });
-                } else {
-                    await sock.sendMessage(sender, { text: '❌ Video too large (Max 16MB). [CinderBot]' });
-                }
+                cooldowns[sender] = now;
+                saveCooldowns(cooldowns);
             } catch (e) {
-                await sock.sendMessage(sender, { text: '❌ Download failed. YouTube might be blocking the server. [CinderBot]' });
+                console.log("Failed to send auto-reply:", e);
             }
-            return;
-        }
-
-        if (text.startsWith('.')) {
-            await sock.sendMessage(sender, { text: '❓ Unknown command. [CinderBot]' });
         }
     });
 }
