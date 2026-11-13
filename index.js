@@ -8,7 +8,7 @@ import ytdl from 'ytdl-core';
 
 // --- CONFIGURATION ---
 const PHONE_NUMBER = "2349014094846"; 
-const MY_JID = "2349014094846@s.whatsapp.net"; // Your bot's personal DM ID
+const MY_JID = "2349014094846@s.whatsapp.net"; 
 const AUTH_FOLDER = fs.existsSync('/var/data') ? '/var/data/auth_info_baileys' : './auth_info_baileys';
 const CONFIG_FILE = fs.existsSync('/var/data') ? '/var/data/bot_config.json' : './bot_config.json';
 const COOLDOWN_FILE = fs.existsSync('/var/data') ? '/var/data/cooldowns.json' : './cooldowns.json';
@@ -21,14 +21,12 @@ http.createServer((req, res) => {
 }).listen(PORT, () => console.log(`Web server listening on port ${PORT}`));
 
 // --- STATE MANAGEMENT ---
-// 1. Bot Config
 if (!fs.existsSync(CONFIG_FILE)) {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify({ awayMode: false, awayMessage: "I'm currently offline. I'll reply later." }));
 }
 const getConfig = () => JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
 const saveConfig = (config) => fs.writeFileSync(CONFIG_FILE, JSON.stringify(config));
 
-// 2. Cooldown Tracker (Remembers who was replied to)
 if (!fs.existsSync(COOLDOWN_FILE)) {
     fs.writeFileSync(COOLDOWN_FILE, JSON.stringify({}));
 }
@@ -89,15 +87,19 @@ async function connectToWhatsApp() {
         // ==========================================
         if (isMe) {
             if (text.includes('[CinderBot]')) return; // Ignore bot's own replies
+            if (!text.startsWith('.')) return; // Ignore normal messages you send to yourself
 
             const config = await getConfig();
+
+            // 2-second delay to prevent WhatsApp rate limiting
+            await new Promise(r => setTimeout(r, 2000));
 
             if (text === '.ping') return await sock.sendMessage(MY_JID, { text: '🏓 Pong! [CinderBot]' });
             if (text === '.away on') { config.awayMode = true; saveConfig(config); return await sock.sendMessage(MY_JID, { text: '✅ Away mode ON. [CinderBot]' }); }
             if (text === '.away off') { config.awayMode = false; saveConfig(config); return await sock.sendMessage(MY_JID, { text: '✅ Away mode OFF. [CinderBot]' }); }
             if (text.startsWith('.setaway ')) { config.awayMessage = text.slice(9); saveConfig(config); return await sock.sendMessage(MY_JID, { text: `✅ Away message updated. [CinderBot]` }); }
 
-            // Sticker Maker (only for you)
+            // Sticker Maker
             if (msg.message.imageMessage) {
                 await sock.sendMessage(MY_JID, { text: '⏳ Converting image... [CinderBot]' });
                 try {
@@ -108,7 +110,7 @@ async function connectToWhatsApp() {
                 return;
             }
 
-            // YouTube Downloader (only for you)
+            // YouTube Downloader
             if (text.startsWith('https://www.youtube.com/') || text.startsWith('https://youtu.be/')) {
                 await sock.sendMessage(MY_JID, { text: '⏳ Downloading video... [CinderBot]' });
                 try {
@@ -123,7 +125,7 @@ async function connectToWhatsApp() {
                     } else {
                         await sock.sendMessage(MY_JID, { text: '❌ Video too large (Max 16MB). [CinderBot]' });
                     }
-                } catch (e) { await sock.sendMessage(MY_JID, { text: '❌ Download failed. YouTube is blocking Render. [CinderBot]' }); }
+                } catch (e) { await sock.sendMessage(MY_JID, { text: '❌ Download failed. YouTube might be blocking the server. [CinderBot]' }); }
                 return;
             }
         }
@@ -134,7 +136,6 @@ async function connectToWhatsApp() {
         if (!isMe) {
             const config = await getConfig();
             
-            // If Away Mode is OFF, do nothing for normal people.
             if (!config.awayMode) return;
 
             // Check the 24-Hour Cooldown
@@ -144,15 +145,13 @@ async function connectToWhatsApp() {
             const twentyFourHours = 24 * 60 * 60 * 1000;
 
             if (now - lastReplied < twentyFourHours) {
-                // Already replied to this person in the last 24 hours. Ignore.
                 console.log(`Ignored ${sender} - in 24hr cooldown.`);
                 return;
             }
 
-            // Reply and log the timestamp
             try {
                 await sock.sendMessage(sender, { text: config.awayMessage });
-                console.log(`Auto-replied to ${sender}. Cooldown started.`);
+                console.log(`Auto-replied to ${sender}.`);
                 
                 cooldowns[sender] = now;
                 saveCooldowns(cooldowns);
