@@ -9,7 +9,7 @@ const fs = require('fs-extra');
 const path = require('path');
 
 // --- CONFIGURATION (CHANGE THESE IN RENDER ENV VARS) ---
-const BOT_NUMBER = process.env.BOT_NUMBER || '2348023931932'; 
+const BOT_NUMBER = process.env.BOT_NUMBER || '2347063140576'; 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN'; 
 const MY_TELEGRAM_ID = process.env.MY_TELEGRAM_ID || 'YOUR_TELEGRAM_USER_ID'; 
 const RENDER_URL = process.env.RENDER_URL || 'https://your-app-name.onrender.com'; 
