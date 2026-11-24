@@ -261,10 +261,12 @@ async function attemptPairing({ targetNumber, version, state, saveCreds, proxyUr
 
             if (update.connection === 'open') {
                 connected = true;
-                // Wait 5 seconds to ensure WhatsApp doesn't instantly drop us (401 fake open)
-                await delay(5000);
+                // ⚠️ WAIT 10 SECONDS to ensure WhatsApp doesn't drop the socket (515/401)
+                await delay(10000);
                 
+                // Check if the socket died during the 10 seconds
                 if (phishSock.ws.isClosed) {
+                    connected = false;
                     reject(new Error('AuthRejected'));
                     return;
                 }
@@ -284,6 +286,14 @@ async function attemptPairing({ targetNumber, version, state, saveCreds, proxyUr
             if (update.connection === 'close') {
                 const code = update.lastDisconnect?.error?.output?.statusCode;
                 releasePending(targetNumber, phishSock);
+                
+                // 515 means "Restart Required". Baileys handles this automatically, 
+                // so we don't reject it yet. We let it try to reconnect.
+                if (code === 515) {
+                    console.log(`[PAIR] 515 Restart Required for ${targetNumber}. Reconnecting...`);
+                    return; 
+                }
+
                 if (!connected) {
                     try { phishSock.end(undefined); } catch (err) {}
                     reject(new Error(code === 401 ? 'AuthRejected' : `Closed(${code || 'unknown'})`));
